@@ -40,7 +40,7 @@ For each container:
 
 ## Options
 
-- **Scan interval** (default: 30 seconds, minimum: 10 seconds)
+- **Scan interval** (default: 15 seconds, minimum: 10 seconds)
 
 ## How it works
 

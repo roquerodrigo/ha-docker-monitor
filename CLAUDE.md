@@ -71,7 +71,7 @@ the integration talks to a local Docker socket, so there is no reauth flow:
 ### Options flow
 
 `options_flow.py` exposes `scan_interval` (seconds; min `MIN_SCAN_INTERVAL_SECONDS`
-= 10, default `DEFAULT_SCAN_INTERVAL_SECONDS` = 30). Changing it triggers
+= 10, default `DEFAULT_SCAN_INTERVAL_SECONDS` = 15). Changing it triggers
 `async_reload_entry`, which re-instantiates the coordinator with the new
 `update_interval`.
 
