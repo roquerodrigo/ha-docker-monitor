@@ -15,9 +15,18 @@ from custom_components.docker_monitor.exceptions import (
 def mock_docker():
     with patch("custom_components.docker_monitor.api.aiodocker") as mock_mod:
         docker_instance = MagicMock()
+        docker_instance.version = AsyncMock(return_value={"Version": "27.0.0"})
+        docker_instance.close = AsyncMock()
         mock_mod.Docker.return_value = docker_instance
         mock_mod.DockerError = Exception
         yield docker_instance
+
+
+def _fake_container(raw: dict) -> MagicMock:
+    """Build a DockerContainer-like mock keyed by __getitem__ on the raw payload."""
+    container = MagicMock()
+    container.__getitem__.side_effect = raw.__getitem__
+    return container
 
 
 @pytest.fixture
@@ -40,8 +49,7 @@ async def test_close_sets_none(client, mock_docker):
 
 
 async def test_list_container_names_returns_names(client, mock_docker):
-    container = MagicMock()
-    container._container = {"Names": ["/prometheus"]}
+    container = _fake_container({"Names": ["/prometheus"]})
     mock_docker.containers.list = AsyncMock(return_value=[container])
 
     names = await client.async_list_container_names()
@@ -49,10 +57,8 @@ async def test_list_container_names_returns_names(client, mock_docker):
 
 
 async def test_list_container_names_skips_anonymous(client, mock_docker):
-    named = MagicMock()
-    named._container = {"Names": ["/prometheus"]}
-    anon = MagicMock()
-    anon._container = {"Names": ["/some-service-a1b2c3d4e5f6"]}
+    named = _fake_container({"Names": ["/prometheus"]})
+    anon = _fake_container({"Names": ["/some-service-a1b2c3d4e5f6"]})
     mock_docker.containers.list = AsyncMock(return_value=[named, anon])
 
     names = await client.async_list_container_names()
@@ -60,8 +66,15 @@ async def test_list_container_names_skips_anonymous(client, mock_docker):
 
 
 async def test_list_container_names_skips_no_name(client, mock_docker):
-    container = MagicMock()
-    container._container = {"Names": []}
+    container = _fake_container({"Names": []})
+    mock_docker.containers.list = AsyncMock(return_value=[container])
+
+    names = await client.async_list_container_names()
+    assert names == []
+
+
+async def test_list_container_names_skips_missing_names_key(client, mock_docker):
+    container = _fake_container({})  # no "Names" key → KeyError path
     mock_docker.containers.list = AsyncMock(return_value=[container])
 
     names = await client.async_list_container_names()
@@ -147,10 +160,16 @@ async def test_client_property_raises_when_not_connected():
 
 
 async def test_connect_oserror_raises():
+    # The lazy ``Docker(...)`` constructor succeeds; the failure surfaces on
+    # the ``version()`` probe, which async_connect issues to validate the socket.
+    docker_instance = MagicMock()
+    docker_instance.version = AsyncMock(side_effect=OSError("socket missing"))
+    docker_instance.close = AsyncMock()
     with patch(
         "custom_components.docker_monitor.api.aiodocker.Docker",
-        side_effect=OSError("socket missing"),
+        return_value=docker_instance,
     ):
         client = DockerMonitorApiClient("/nonexistent")
         with pytest.raises(DockerMonitorApiClientCommunicationError):
             await client.async_connect()
+        docker_instance.close.assert_awaited_once()

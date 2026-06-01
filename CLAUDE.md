@@ -55,30 +55,49 @@ sensor.py        → reads coordinator.data and creates the entities
 
 ### Config flow surface
 
-`config_flow.py` implements four user-facing steps; all share one `_validate` helper and one `_credentials_schema` builder:
+`config_flow.py` implements two user-facing steps; both share the `_validate`
+helper and the `_socket_schema` builder. There is **no** authentication —
+the integration talks to a local Docker socket, so there is no reauth flow:
 
-- `async_step_user` — initial setup; sets unique_id from username, aborts on duplicate.
-- `async_step_reauth` / `async_step_reauth_confirm` — fired when the coordinator raises `ConfigEntryAuthFailed`. `async_update_reload_and_abort` rotates credentials in place.
-- `async_step_reconfigure` — lets the user edit credentials via the integration's three-dot menu, no delete-and-re-add cycle.
+- `async_step_user` — initial setup; sets unique_id from `slugify(socket_path)`, aborts on duplicate. Entry title is the socket path itself (so multiple sockets are distinguishable in the UI).
+- `async_step_reconfigure` — lets the user edit the socket path via the integration's three-dot menu, no delete-and-re-add cycle.
 - `async_get_options_flow` — returns `DockerMonitorOptionsFlow` from `options_flow.py` (one class per file).
+
+`_validate` opens a client and calls `async_connect()` (which issues a real
+`version()` probe) plus `async_list_container_names()`; a
+`CommunicationError` maps to `{"base": "connection"}`, anything else to
+`{"base": "unknown"}`.
 
 ### Options flow
 
-`options_flow.py` exposes `scan_interval` (seconds; min 30, default 300). Changing it triggers `async_reload_entry`, which re-instantiates the coordinator with the new `update_interval`.
+`options_flow.py` exposes `scan_interval` (seconds; min `MIN_SCAN_INTERVAL_SECONDS`
+= 10, default `DEFAULT_SCAN_INTERVAL_SECONDS` = 30). Changing it triggers
+`async_reload_entry`, which re-instantiates the coordinator with the new
+`update_interval`.
 
 ### API client
 
-`api.py` exposes `DockerMonitorApiClient` plus the `_verify_response_or_raise` helper. Exceptions live under `exceptions/`:
+`api.py` exposes `DockerMonitorApiClient`, a thin async wrapper over
+[`aiodocker`](https://github.com/aio-libs/aiodocker). Exceptions live under
+`exceptions/`:
 
-- `DockerMonitorApiClientError` (base)
-- `DockerMonitorApiClientCommunicationError` (timeout, connection)
-- `DockerMonitorApiClientAuthenticationError` (401/403)
+- `DockerMonitorApiClientError` (base; also raised when the client is used before `async_connect`)
+- `DockerMonitorApiClientCommunicationError` (socket unreachable, `DockerError`, `OSError`)
 
-`_api_wrapper` maps `TimeoutError`, `aiohttp.ClientError` and `socket.gaierror` to `CommunicationError`; any other exception becomes the base error.
+`aiodocker.Docker(...)` is lazy, so `async_connect` issues a `version()` call
+to fail fast on a bad socket path. `async_list_container_names` reads the
+public `container["Names"]` mapping and filters anonymous (hex-hash) names via
+`_is_anonymous`. `async_get_container_data` gathers `stats(stream=False)` +
+`show()` and derives CPU% (`_calculate_cpu_percent`, the official `docker stats`
+formula) and memory in MB (`_calculate_memory`, cache-subtracted). There is no
+authentication error type — Docker over a Unix socket is unauthenticated.
 
 ### Diagnostics
 
-`diagnostics.py` returns `DockerMonitorDiagnosticsPayload`. `username`/`password` are redacted via `async_redact_data` (driven by `TO_REDACT: frozenset[str]`). `.github/ISSUE_TEMPLATE/bug.yml` asks users to attach the dump.
+`diagnostics.py` returns `DockerMonitorDiagnosticsPayload` with the entry data
+(socket path) and the full coordinator snapshot. `TO_REDACT` is **empty** —
+a socket path is not a secret. `.github/ISSUE_TEMPLATE/bug.yml` asks users to
+attach the dump.
 
 ### Repairs
 

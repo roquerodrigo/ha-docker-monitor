@@ -11,7 +11,7 @@ from .const import ATTRIBUTION, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 
 if TYPE_CHECKING:
-    from .data import DockerMonitorContainerData
+    from .data import DockerMonitorContainerData, DockerMonitorPayload
 
 
 class DockerMonitorEntity(
@@ -47,12 +47,19 @@ class DockerMonitorEntity(
     @property
     def available(self) -> bool:
         """Return True when the container is present in the latest payload."""
+        # ``data`` is typed non-optional by the coordinator generic, but is
+        # ``None`` until the first successful refresh — narrow defensively.
+        data: DockerMonitorPayload | None = self.coordinator.data
         return (
             self.coordinator.last_update_success
-            and self._container_name in self.coordinator.data["containers"]
+            and data is not None
+            and self._container_name in data["containers"]
         )
 
     @property
     def _container(self) -> DockerMonitorContainerData | None:
         """Return the container snapshot or None if not found."""
-        return self.coordinator.data["containers"].get(self._container_name)
+        data: DockerMonitorPayload | None = self.coordinator.data
+        if data is None:
+            return None
+        return data["containers"].get(self._container_name)
