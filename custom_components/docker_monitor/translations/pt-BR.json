@@ -1,0 +1,53 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Configurar Docker Monitor",
+                "description": "Informe o caminho do socket Docker.",
+                "data": {
+                    "socket_path": "Caminho do socket"
+                }
+            },
+            "reconfigure": {
+                "title": "Reconfigurar Docker Monitor",
+                "description": "Atualize o caminho do socket Docker.",
+                "data": {
+                    "socket_path": "Caminho do socket"
+                }
+            }
+        },
+        "error": {
+            "connection": "Não foi possível conectar ao Docker. Verifique o caminho do socket.",
+            "unknown": "Erro inesperado."
+        },
+        "abort": {
+            "already_configured": "Este socket Docker já está configurado.",
+            "reconfigure_successful": "Reconfiguração concluída."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Opções do Docker Monitor",
+                "data": {
+                    "scan_interval": "Intervalo de atualização (segundos)"
+                }
+            }
+        }
+    },
+    "entity": {
+        "sensor": {
+            "cpu": {
+                "name": "CPU"
+            },
+            "memory": {
+                "name": "Memória"
+            }
+        },
+        "binary_sensor": {
+            "health": {
+                "name": "Saúde"
+            }
+        }
+    }
+}

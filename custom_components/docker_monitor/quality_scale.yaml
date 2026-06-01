@@ -1,0 +1,90 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: This integration does not register any service actions.
+  appropriate-polling: done
+  brands:
+    status: todo
+    comment: Local brand/ directory satisfies HACS; submission to home-assistant/brands is still pending.
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency: done
+  docs-actions:
+    status: exempt
+    comment: This integration does not register any service actions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: todo
+  entity-event-setup:
+    status: exempt
+    comment: No entity subscribes to external events; data flows through the coordinator.
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions:
+    status: exempt
+    comment: This integration does not register any service actions.
+  config-entry-unloading: done
+  docs-configuration-parameters: todo
+  docs-installation-parameters: todo
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: todo
+  reauthentication-flow:
+    status: exempt
+    comment: The Docker Engine socket is unauthenticated; there are no credentials to reauthenticate.
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: Containers are discovered by polling the local Docker socket, not via a network discovery protocol.
+  discovery-update-info:
+    status: exempt
+    comment: No network discovery; the socket path is user-provided and static.
+  docs-data-update: todo
+  docs-examples: todo
+  docs-known-limitations: todo
+  docs-supported-devices:
+    status: exempt
+    comment: This integration monitors Docker containers, not user-owned physical devices.
+  docs-supported-functions: todo
+  docs-troubleshooting: todo
+  docs-use-cases: todo
+  dynamic-devices: done
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default:
+    status: exempt
+    comment: All entities are primary monitoring values and should be enabled on setup.
+  entity-translations: done
+  exception-translations:
+    status: exempt
+    comment: Config-flow errors are translated; the integration raises no user-facing exception strings beyond those.
+  icon-translations:
+    status: exempt
+    comment: Each entity uses a single static icon; no state-based icon mapping is needed.
+  reconfiguration-flow: done
+  repair-issues:
+    status: exempt
+    comment: The integration surfaces no recoverable conditions that warrant a repair issue.
+  stale-devices:
+    status: todo
+    comment: Removed containers go unavailable, but their device is not yet pruned from the registry.
+
+  # Platinum
+  async-dependency: done
+  inject-websession:
+    status: exempt
+    comment: aiodocker manages its own Unix-socket connector; there is no HTTP session to inject.
+  strict-typing: done
