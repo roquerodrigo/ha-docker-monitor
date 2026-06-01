@@ -3,106 +3,52 @@
 [![CI](https://github.com/roquerodrigo/ha-docker-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/roquerodrigo/ha-docker-monitor/actions/workflows/ci.yml)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
-Template for creating custom [Home Assistant](https://www.home-assistant.io/) integrations distributable via [HACS](https://hacs.xyz/).
+Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the local Docker Engine API. Each named container becomes a device with CPU usage, memory usage, and health check entities.
 
-Based on [ludeeus/docker_monitor](https://github.com/ludeeus/docker_monitor), with adaptations used in the [@roquerodrigo](https://github.com/roquerodrigo) integrations. Conventions for contributors live in [`CODE_STYLE.md`](./CODE_STYLE.md); architectural notes for AI agents in [`CLAUDE.md`](./CLAUDE.md).
-
-## Add to Home Assistant
+## Installation
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=roquerodrigo&repository=ha-docker-monitor&category=integration)
 
-## What's included
+Or manually copy `custom_components/docker_monitor/` into your Home Assistant `config/custom_components/` directory.
 
-- **Full integration scaffold** with `DataUpdateCoordinator`, config flow, options flow, sample sensor and typed `runtime_data`.
-- **Reauth + reconfigure flows** triggered automatically by `ConfigEntryAuthFailed` or by the user.
-- **Options flow** with a configurable `scan_interval` plumbed through to the coordinator.
-- **Diagnostics platform** with credential redaction (`diagnostics.py`).
-- **Repairs platform** (`repairs.py`) wired into HA's Issue Registry, with sample issue + `ConfirmRepairFlow`.
-- **CI**: ruff lint + format, mypy type-check, `hassfest`, HACS validation, CodeQL security scan.
-- **Pre-commit hooks** (`.pre-commit-config.yaml`) — ruff + JSON/YAML/TOML checks.
-- **Coverage gate** at 95 % enforced by `pytest.ini` (currently at 100 %).
-- **Devcontainer** (Debian + Python 3.14) and VS Code extension recommendations.
-- **Scripts** that auto-detect `./.venv` (no `source activate` needed) to start HA in debug or run lint.
-- **Tests** with `pytest-homeassistant-custom-component` covering init, config + reauth + reconfigure flows, options flow, coordinator, API client, base entity, sensor, diagnostics, repairs and translation parity.
-- **Issue templates**, **PR template**, **`.editorconfig`** and grouped Dependabot updates.
-- **Translations** for English and Brazilian Portuguese (with parity test).
+## Prerequisites
 
-## How to use
+The Docker socket (`/var/run/docker.sock`) must be mounted into the Home Assistant container. Add to your compose:
 
-1. Use this repository as a **template** on GitHub ("Use this template" button) or clone it manually.
-2. Rename the domain throughout the codebase:
-   - `custom_components/docker_monitor/` → `custom_components/<your_domain>/`
-   - `DOMAIN = "docker_monitor"` in `const.py`; `domain` in `manifest.json`; `name` in `hacs.json`
-   - `name`, `documentation`, `issue_tracker`, `codeowners` in `manifest.json`
-   - Rename classes: `DockerMonitor*` → `<YourDomain>*`
-   - Run `grep -rn docker_monitor .` to catch leftover imports (especially in `tests/`)
-3. Replace the sample API in `api.py` with your real client and adjust `coordinator.py`, `config_flow.py`, `sensor.py` to match.
-4. Update `translations/en.json` and `translations/pt-BR.json` (parity is enforced by tests).
-5. Replace the placeholder brand assets in `custom_components/docker_monitor/brand/` (`icon.png`, `icon@2x.png`, `logo.png`, `logo@2x.png`) with your own — these satisfy the HACS brand check locally until you register the integration in [`home-assistant/brands`](https://github.com/home-assistant/brands).
-6. Update `README.md` and `CLAUDE.md` for your integration.
-
-## Useful commands
-
-```bash
-scripts/setup                                              # install dependencies (requirements.txt)
-scripts/develop                                            # start Home Assistant in debug mode with the integration loaded
-uv run ruff format --check .                               # check formatting
-uv run ruff check .                                        # lint
-uv run mypy custom_components/docker_monitor        # type-check
-uv run pytest                                              # run tests with the 95 % coverage gate
+```yaml
+volumes:
+  - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
-Each script auto-detects `./.venv` and prepends it to `PATH` — no `source .venv/bin/activate` needed. For ad-hoc commands the same trick works: `.venv/bin/pytest`, `.venv/bin/ruff …`.
+## Configuration
 
-HA runs with config in `config/` and `PYTHONPATH` pointing at `custom_components/` — no symlinks. To recreate entity/device IDs during development:
+1. Go to **Settings > Devices & Services > Add Integration**.
+2. Search for **Docker Monitor**.
+3. Enter the Docker socket path (default: `/var/run/docker.sock`).
 
-```bash
-rm config/.storage/core.entity_registry config/.storage/core.device_registry
-```
+The integration will automatically discover all running named containers and create a device for each one.
 
-## Layout
+## Entities
 
-```
-custom_components/docker_monitor/
-├── __init__.py        # async_setup_entry / unload / reload
-├── api.py             # ApiClient (single class)
-├── config_flow.py     # user / reauth / reconfigure steps
-├── const.py           # DOMAIN, LOGGER, URLs, ATTRIBUTION, scan-interval defaults
-├── coordinator.py     # DataUpdateCoordinator (interval injected from options)
-├── data.py            # typed ConfigEntry + DockerMonitorData dataclass + TypedDicts
-├── diagnostics.py     # downloadable diagnostics with credential redaction
-├── entity.py          # base CoordinatorEntity
-├── exceptions/        # one file per exception class
-│   ├── __init__.py
-│   ├── api_client_authentication_error.py
-│   ├── api_client_communication_error.py
-│   └── api_client_error.py
-├── manifest.json
-├── options_flow.py    # OptionsFlow with scan_interval
-├── repairs.py         # Repair platform: async_create_fix_flow + sample issue
-├── sensor.py          # sample platform
-└── translations/
-    ├── en.json
-    └── pt-BR.json
-```
+For each container:
 
-Layout convention (one top-level class per file; related classes grouped under a directory) is documented in [`CODE_STYLE.md`](./CODE_STYLE.md).
+| Entity | Type | Description |
+|---|---|---|
+| CPU | Sensor | CPU usage percentage |
+| Memory | Sensor | Memory usage in MB |
+| Health | Binary Sensor | Health check status (only for containers with a health check configured) |
 
-## Pre-commit hooks
+## Options
 
-Install once per clone (after `scripts/setup`):
+- **Scan interval** (default: 30 seconds, minimum: 10 seconds)
 
-```bash
-pre-commit install
-```
+## How it works
 
-This wires ruff + basic file hygiene checks (`.pre-commit-config.yaml`) into every commit, mirroring the CI lint job.
-
-## CI
-
-- **`lint.yml`** — ruff (check + format) and mypy (Python 3.14)
-- **`validate.yml`** — `hassfest` + HACS validation; push/PR to `main` and a daily cron
-- **`codeql.yml`** — GitHub CodeQL security scan; push/PR to `main` and a weekly cron
+- Connects to the Docker Engine API via Unix socket using [aiodocker](https://github.com/aio-libs/aiodocker).
+- Polls all running containers at the configured interval.
+- Containers are identified by name (stable across `docker compose up --force-recreate`).
+- Containers without a name (anonymous hex-hash names) are excluded.
+- Stopped or removed containers become unavailable.
 
 ## License
 
