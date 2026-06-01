@@ -34,3 +34,14 @@ class DockerMonitorMemorySensor(DockerMonitorEntity, SensorEntity):
         if container is None:
             return None
         return container["memory_usage_mb"]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, float] | None:
+        """Expose the container's memory limit (MB) alongside usage."""
+        container = self._container
+        if container is None:
+            return None
+        limit = container["memory_limit_mb"]
+        if limit is None:
+            return None
+        return {"memory_limit_mb": limit}

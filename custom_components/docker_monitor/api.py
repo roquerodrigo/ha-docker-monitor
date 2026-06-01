@@ -26,14 +26,23 @@ class DockerMonitorApiClient:
         self._docker: aiodocker.Docker | None = None
 
     async def async_connect(self) -> None:
-        """Open a connection to the Docker daemon."""
+        """
+        Open a connection to the Docker daemon and verify it responds.
+
+        ``aiodocker.Docker(...)`` is lazy — constructing it never touches
+        the socket — so a bad path only surfaces on the first request.
+        Issue a lightweight ``version()`` here so an unreachable or
+        non-existent socket fails fast at connect time (which is what the
+        config flow relies on to validate the path).
+        """
+        docker = aiodocker.Docker(url=f"unix://{self._socket_path}")
         try:
-            self._docker = aiodocker.Docker(
-                url=f"unix://{self._socket_path}",
-            )
-        except (OSError, ValueError) as exception:
+            await docker.version()
+        except (aiodocker.DockerError, OSError, ValueError) as exception:
+            await docker.close()
             msg = f"Failed to connect to Docker at {self._socket_path}: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception
+        self._docker = docker
 
     async def async_close(self) -> None:
         """Close the connection."""
@@ -51,7 +60,12 @@ class DockerMonitorApiClient:
 
         names: list[str] = []
         for container in containers:
-            raw_names: list[str] = container._container.get("Names", [])  # noqa: SLF001
+            # ``DockerContainer`` exposes the raw daemon payload via
+            # ``__getitem__``; ``Names`` is the list of "/name" aliases.
+            try:
+                raw_names: list[str] = container["Names"]
+            except KeyError:
+                continue
             if not raw_names:
                 continue
             name = raw_names[0].lstrip("/")
@@ -149,7 +163,12 @@ def _calculate_cpu_percent(stats: dict[str, object]) -> float | None:
     if sys_delta <= 0 or float(online_cpus) <= 0:  # type: ignore[arg-type]
         return None
 
-    return round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)  # type: ignore[arg-type]
+    # Official `docker stats` formula: the container's share of total CPU
+    # time over the sampling window, scaled by the number of online CPUs so
+    # 100% means one fully-saturated core (matches the Docker CLI / API docs).
+    percent = round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)  # type: ignore[arg-type]
+    LOGGER.debug("CPU: %.2f%% (online_cpus=%s)", percent, online_cpus)
+    return percent
 
 
 def _calculate_memory(

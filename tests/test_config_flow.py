@@ -47,7 +47,7 @@ async def test_step_user_success(hass, enable_custom_integrations):
             user_input=USER_INPUT,
         )
     assert result["type"] == FlowResultType.CREATE_ENTRY
-    assert result["title"] == "Docker"
+    assert result["title"] == USER_INPUT["socket_path"]
     assert result["data"] == USER_INPUT
 
 

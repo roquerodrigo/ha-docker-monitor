@@ -46,6 +46,17 @@ def test_memory_unique_id():
     assert sensor.unique_id == "eid_prometheus_memory"
 
 
+def test_memory_extra_attributes_expose_limit():
+    sensor = DockerMonitorMemorySensor(_coord(), "prometheus")
+    assert sensor.extra_state_attributes == {"memory_limit_mb": 7800.0}
+
+
+def test_memory_extra_attributes_none_when_missing():
+    payload = {"containers": {}}
+    sensor = DockerMonitorMemorySensor(_coord(payload), "prometheus")
+    assert sensor.extra_state_attributes is None
+
+
 async def test_sensor_entities_created(hass, setup_integration):
     sensors = hass.states.async_all("sensor")
     assert len(sensors) == 4
