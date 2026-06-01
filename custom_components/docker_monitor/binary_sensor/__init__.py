@@ -28,12 +28,11 @@ async def async_setup_entry(
         if not new_names:
             return
 
-        entities: list[DockerMonitorHealthBinarySensor] = []
-        for name in sorted(new_names):
-            if containers[name]["health_status"] is not None:
-                entities.append(
-                    DockerMonitorHealthBinarySensor(coordinator, name),
-                )
+        entities = [
+            DockerMonitorHealthBinarySensor(coordinator, name)
+            for name in sorted(new_names)
+            if containers[name]["health_status"] is not None
+        ]
 
         known_containers.update(new_names)
         if entities:

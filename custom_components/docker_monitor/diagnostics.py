@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -11,6 +11,7 @@ if TYPE_CHECKING:
         DockerMonitorConfigEntry,
         DockerMonitorDiagnosticsEntry,
         DockerMonitorDiagnosticsPayload,
+        DockerMonitorOptionsData,
     )
 
 TO_REDACT: frozenset[str] = frozenset()
@@ -25,8 +26,8 @@ async def async_get_config_entry_diagnostics(
         "title": entry.title,
         "version": entry.version,
         "domain": entry.domain,
-        "data": {"socket_path": entry.data.get("socket_path", "")},
-        "options": dict(entry.options),
+        "data": {"socket_path": str(entry.data.get("socket_path", ""))},
+        "options": cast("DockerMonitorOptionsData", dict(entry.options)),
     }
     return {
         "entry": diag_entry,

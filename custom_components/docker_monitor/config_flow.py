@@ -19,8 +19,6 @@ from .exceptions import (
 from .options_flow import DockerMonitorOptionsFlow
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
-
     from .data import DockerMonitorConfigData, DockerMonitorConfigEntry
 
 
@@ -62,7 +60,7 @@ class DockerMonitorFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             errors = await self._validate(user_input)
             if not errors:
                 await self.async_set_unique_id(
-                    slugify(user_input[CONF_SOCKET_PATH]),
+                    slugify(user_input["socket_path"]),
                 )
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
@@ -96,7 +94,7 @@ class DockerMonitorFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="reconfigure",
             data_schema=_socket_schema(
-                default_path=existing.get(CONF_SOCKET_PATH),
+                default_path=existing.get("socket_path"),
             ),
             errors=errors,
         )
@@ -108,7 +106,7 @@ class DockerMonitorFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Test connection to the Docker socket."""
         try:
             client = DockerMonitorApiClient(
-                socket_path=user_input[CONF_SOCKET_PATH],
+                socket_path=user_input["socket_path"],
             )
             await client.async_connect()
             await client.async_list_container_names()

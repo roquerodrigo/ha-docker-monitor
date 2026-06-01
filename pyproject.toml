@@ -80,6 +80,8 @@ keep-runtime-typing = true
 max-complexity = 25
 
 [tool.ruff.lint.per-file-ignores]
+"custom_components/docker_monitor/sensor/**" = ["TID252"]
+"custom_components/docker_monitor/binary_sensor/**" = ["TID252"]
 "tests/**" = [
     "S101",     # assert is normal in pytest
     "S105",     # hardcoded-password-string is fine for fake test credentials

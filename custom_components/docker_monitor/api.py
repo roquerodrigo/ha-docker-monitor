@@ -45,16 +45,13 @@ class DockerMonitorApiClient:
         """Return the names of all running named containers."""
         try:
             containers = await self._client.containers.list()
-        except aiodocker.DockerError as exception:
-            msg = f"Failed to list containers: {exception.message}"
-            raise DockerMonitorApiClientCommunicationError(msg) from exception
-        except OSError as exception:
-            msg = f"Failed to connect to Docker: {exception}"
+        except (aiodocker.DockerError, OSError) as exception:
+            msg = f"Failed to list containers: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception
 
         names: list[str] = []
         for container in containers:
-            raw_names: list[str] = container._container.get("Names", [])
+            raw_names: list[str] = container._container.get("Names", [])  # noqa: SLF001
             if not raw_names:
                 continue
             name = raw_names[0].lstrip("/")
@@ -74,11 +71,8 @@ class DockerMonitorApiClient:
                 container.stats(stream=False),
                 container.show(),
             )
-        except aiodocker.DockerError as exception:
-            msg = f"Failed to get data for container {name}: {exception.message}"
-            raise DockerMonitorApiClientCommunicationError(msg) from exception
-        except OSError as exception:
-            msg = f"Failed to connect to Docker: {exception}"
+        except (aiodocker.DockerError, OSError) as exception:
+            msg = f"Failed to get data for container {name}: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception
 
         stats = stats_list[0] if stats_list else {}
@@ -117,11 +111,12 @@ class DockerMonitorApiClient:
 
 def _is_anonymous(name: str) -> bool:
     """Return True for auto-generated container names (hex hashes)."""
+    min_hash_len = 12
     parts = name.split("-")
-    if len(parts) < 2:
+    if len(parts) < 2:  # noqa: PLR2004
         return False
     last = parts[-1]
-    return len(last) >= 12 and all(c in "0123456789abcdef" for c in last)
+    return len(last) >= min_hash_len and all(c in "0123456789abcdef" for c in last)
 
 
 def _calculate_cpu_percent(stats: dict[str, object]) -> float | None:
@@ -148,19 +143,13 @@ def _calculate_cpu_percent(stats: dict[str, object]) -> float | None:
     ):
         return None
 
-    assert isinstance(cpu_total, int | float)
-    assert isinstance(precpu_total, int | float)
-    assert isinstance(sys_usage, int | float)
-    assert isinstance(presys_usage, int | float)
-    assert isinstance(online_cpus, int | float)
+    cpu_delta = float(cpu_total) - float(precpu_total)  # type: ignore[arg-type]
+    sys_delta = float(sys_usage) - float(presys_usage)  # type: ignore[arg-type]
 
-    cpu_delta = cpu_total - precpu_total
-    sys_delta = sys_usage - presys_usage
-
-    if sys_delta <= 0 or online_cpus <= 0:
+    if sys_delta <= 0 or float(online_cpus) <= 0:  # type: ignore[arg-type]
         return None
 
-    return round((cpu_delta / sys_delta) * online_cpus * 100.0, 2)
+    return round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)  # type: ignore[arg-type]
 
 
 def _calculate_memory(

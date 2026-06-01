@@ -9,7 +9,7 @@ from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import DockerMonitorApiClient
-from .const import CONF_SOCKET_PATH, DEFAULT_SCAN_INTERVAL_SECONDS
+from .const import DEFAULT_SCAN_INTERVAL_SECONDS
 from .coordinator import DockerMonitorDataUpdateCoordinator
 from .data import DockerMonitorData
 
@@ -31,7 +31,7 @@ async def async_setup_entry(
         entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS),
     )
 
-    client = DockerMonitorApiClient(socket_path=config[CONF_SOCKET_PATH])
+    client = DockerMonitorApiClient(socket_path=config["socket_path"])
     await client.async_connect()
 
     coordinator = DockerMonitorDataUpdateCoordinator(
@@ -53,7 +53,7 @@ async def async_setup_entry(
 
 
 async def async_unload_entry(
-    hass: HomeAssistant,  # noqa: ARG001
+    hass: HomeAssistant,
     entry: DockerMonitorConfigEntry,
 ) -> bool:
     """Handle removal of an entry."""

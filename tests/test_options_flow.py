@@ -19,11 +19,14 @@ async def test_options_flow_shows_form_with_default(hass, setup_integration):
     assert scan_interval_key.default() == DEFAULT_SCAN_INTERVAL_SECONDS
 
 
-async def test_options_flow_persists_scan_interval(hass, setup_integration):
+async def test_options_flow_persists_scan_interval(
+    hass, setup_integration, mock_api_client
+):
     result = await hass.config_entries.options.async_init(setup_integration.entry_id)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], user_input={CONF_SCAN_INTERVAL: 60}
     )
+    await hass.async_block_till_done()
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert setup_integration.options[CONF_SCAN_INTERVAL] == 60
 

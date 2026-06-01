@@ -4,7 +4,6 @@ from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
-from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
 from custom_components.docker_monitor.const import DOMAIN
@@ -12,54 +11,40 @@ from custom_components.docker_monitor.coordinator import (
     DockerMonitorDataUpdateCoordinator,
 )
 from custom_components.docker_monitor.exceptions import (
-    DockerMonitorApiClientAuthenticationError,
-    DockerMonitorApiClientError,
+    DockerMonitorApiClientCommunicationError,
 )
-
-
-def _make_coordinator(hass, payload=None, scan_interval=timedelta(minutes=5)):
-    coord = DockerMonitorDataUpdateCoordinator(
-        hass=hass, scan_interval=scan_interval
-    )
-    client = AsyncMock()
-    client.async_get_data = AsyncMock(return_value=payload or {})
-    runtime_data = type("D", (), {"client": client})()
-    entry = type("E", (), {"entry_id": "eid", "runtime_data": runtime_data})()
-    coord.config_entry = entry
-    return coord, client
 
 
 def test_init_sets_domain_name(hass):
     coord = DockerMonitorDataUpdateCoordinator(
-        hass=hass, scan_interval=timedelta(seconds=300)
+        hass=hass,
+        scan_interval=timedelta(seconds=30),
     )
     assert coord.name == DOMAIN
 
 
 def test_init_sets_update_interval(hass):
     coord = DockerMonitorDataUpdateCoordinator(
-        hass=hass, scan_interval=timedelta(seconds=42)
+        hass=hass,
+        scan_interval=timedelta(seconds=42),
     )
     assert coord.update_interval == timedelta(seconds=42)
 
 
-async def test_update_data_returns_payload(hass, sample_payload):
-    coord, _ = _make_coordinator(hass, payload=sample_payload)
-    result = await coord._async_update_data()
-    assert result == sample_payload
+async def test_update_data_returns_payload(hass, setup_integration):
+    data = setup_integration.runtime_data.coordinator.data
+    assert "containers" in data
+    assert "prometheus" in data["containers"]
+    assert "ha-mcp" in data["containers"]
 
 
-async def test_update_data_raises_update_failed_on_api_error(hass):
-    coord, client = _make_coordinator(hass)
-    client.async_get_data.side_effect = DockerMonitorApiClientError("down")
-    with pytest.raises(UpdateFailed):
-        await coord._async_update_data()
-
-
-async def test_update_data_raises_auth_failed_on_auth_error(hass):
-    coord, client = _make_coordinator(hass)
-    client.async_get_data.side_effect = (
-        DockerMonitorApiClientAuthenticationError("nope")
+async def test_update_data_raises_update_failed_on_comm_error(
+    hass,
+    setup_integration,
+):
+    coordinator = setup_integration.runtime_data.coordinator
+    coordinator.config_entry.runtime_data.client.async_list_container_names = AsyncMock(
+        side_effect=DockerMonitorApiClientCommunicationError("timeout"),
     )
-    with pytest.raises(ConfigEntryAuthFailed):
-        await coord._async_update_data()
+    with pytest.raises(UpdateFailed):
+        await coordinator._async_update_data()

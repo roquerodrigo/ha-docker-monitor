@@ -1,45 +1,51 @@
 from __future__ import annotations
 
+import copy
 from unittest.mock import MagicMock
 
-from custom_components.docker_monitor.sensor import (
-    DockerMonitorTitleSensor,
+from custom_components.docker_monitor.sensor.cpu_sensor import (
+    DockerMonitorCpuSensor,
 )
-
-SAMPLE_POST = {
-    "userId": 1,
-    "id": 1,
-    "title": "hello",
-    "body": "world",
-}
+from custom_components.docker_monitor.sensor.memory_sensor import (
+    DockerMonitorMemorySensor,
+)
+from tests.conftest import SAMPLE_PAYLOAD
 
 
-def _make_sensor(data=None) -> DockerMonitorTitleSensor:
+def _coord(payload=None):
     coord = MagicMock()
-    coord.data = data
+    coord.data = payload or copy.deepcopy(SAMPLE_PAYLOAD)
     coord.config_entry.entry_id = "eid"
-    return DockerMonitorTitleSensor(coordinator=coord)
+    coord.last_update_success = True
+    return coord
 
 
-async def test_sensor_count(hass, setup_integration):
-    assert len(hass.states.async_all("sensor")) == 1
+def test_cpu_native_value():
+    sensor = DockerMonitorCpuSensor(_coord(), "prometheus")
+    assert sensor.native_value == 0.2
 
 
-async def test_sensor_state_value(hass, setup_integration):
-    state = next(iter(hass.states.async_all("sensor")))
-    assert state.state == "sunt aut facere repellat provident"
-
-
-def test_native_value_extracts_title():
-    sensor = _make_sensor(data=SAMPLE_POST)
-    assert sensor.native_value == "hello"
-
-
-def test_native_value_returns_none_before_first_refresh():
-    sensor = _make_sensor(data=None)
+def test_cpu_native_value_none_when_missing():
+    payload = {"containers": {}}
+    sensor = DockerMonitorCpuSensor(_coord(payload), "prometheus")
     assert sensor.native_value is None
 
 
-def test_unique_id_uses_entry_id_with_title_suffix():
-    sensor = _make_sensor()
-    assert sensor.unique_id == "eid_title"
+def test_cpu_unique_id():
+    sensor = DockerMonitorCpuSensor(_coord(), "prometheus")
+    assert sensor.unique_id == "eid_prometheus_cpu"
+
+
+def test_memory_native_value():
+    sensor = DockerMonitorMemorySensor(_coord(), "prometheus")
+    assert sensor.native_value == 63.7
+
+
+def test_memory_unique_id():
+    sensor = DockerMonitorMemorySensor(_coord(), "prometheus")
+    assert sensor.unique_id == "eid_prometheus_memory"
+
+
+async def test_sensor_entities_created(hass, setup_integration):
+    sensors = hass.states.async_all("sensor")
+    assert len(sensors) == 4

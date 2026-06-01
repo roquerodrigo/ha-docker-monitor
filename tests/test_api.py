@@ -1,37 +1,14 @@
 from __future__ import annotations
 
-import socket
-from unittest.mock import AsyncMock, MagicMock
-
-import aiohttp
-import pytest
-
 from custom_components.docker_monitor.api import (
-    DockerMonitorApiClient,
-    _verify_response_or_raise,
+    _calculate_cpu_percent,
+    _calculate_memory,
+    _is_anonymous,
 )
 from custom_components.docker_monitor.exceptions import (
-    DockerMonitorApiClientAuthenticationError,
     DockerMonitorApiClientCommunicationError,
     DockerMonitorApiClientError,
 )
-
-
-def _make_session(payload=None, side_effect=None, status=200):
-    response = AsyncMock()
-    response.status = status
-    response.raise_for_status = MagicMock()
-    response.json = AsyncMock(return_value=payload or {})
-    session = MagicMock()
-    if side_effect is not None:
-        session.request = AsyncMock(side_effect=side_effect)
-    else:
-        session.request = AsyncMock(return_value=response)
-    return session, response
-
-
-def _client(session) -> DockerMonitorApiClient:
-    return DockerMonitorApiClient(username="u", password="p", session=session)
 
 
 def test_communication_error_is_api_error():
@@ -41,103 +18,84 @@ def test_communication_error_is_api_error():
     )
 
 
-def test_auth_error_is_api_error():
-    assert issubclass(
-        DockerMonitorApiClientAuthenticationError,
-        DockerMonitorApiClientError,
-    )
-
-
 def test_api_error_is_exception():
     assert issubclass(DockerMonitorApiClientError, Exception)
 
 
-def test_verify_response_calls_raise_for_status():
-    response = MagicMock()
-    response.status = 200
-    _verify_response_or_raise(response)
-    response.raise_for_status.assert_called_once()
+def test_is_anonymous_hex_hash():
+    assert _is_anonymous("some-service-a1b2c3d4e5f6") is True
 
 
-@pytest.mark.parametrize("status", [401, 403])
-def test_verify_response_raises_auth_on_401_403(status):
-    response = MagicMock()
-    response.status = status
-    with pytest.raises(DockerMonitorApiClientAuthenticationError):
-        _verify_response_or_raise(response)
+def test_is_anonymous_short_name():
+    assert _is_anonymous("prometheus") is False
 
 
-def test_verify_response_propagates_http_error():
-    response = MagicMock()
-    response.status = 500
-    response.raise_for_status.side_effect = aiohttp.ClientResponseError(
-        request_info=MagicMock(), history=()
-    )
-    with pytest.raises(aiohttp.ClientResponseError):
-        _verify_response_or_raise(response)
+def test_is_anonymous_compose_name():
+    assert _is_anonymous("smart-home-prometheus-1") is False
 
 
-async def test_async_get_data_returns_payload(sample_payload):
-    session, _ = _make_session(sample_payload)
-    result = await _client(session).async_get_data()
-    assert result == sample_payload
+def test_calculate_cpu_percent_basic():
+    stats = {
+        "cpu_stats": {
+            "cpu_usage": {"total_usage": 200},
+            "system_cpu_usage": 2000,
+            "online_cpus": 4,
+        },
+        "precpu_stats": {
+            "cpu_usage": {"total_usage": 100},
+            "system_cpu_usage": 1000,
+        },
+    }
+    result = _calculate_cpu_percent(stats)
+    assert result is not None
+    assert result == 40.0  # (100/1000) * 4 * 100
 
 
-async def test_async_get_data_uses_correct_url():
-    from custom_components.docker_monitor.const import API_BASE_URL
-
-    session, _ = _make_session({})
-    await _client(session).async_get_data()
-    assert session.request.call_args.kwargs["url"] == f"{API_BASE_URL}/posts/1"
-    assert session.request.call_args.kwargs["method"] == "get"
+def test_calculate_cpu_percent_returns_none_on_missing():
+    assert _calculate_cpu_percent({}) is None
 
 
-async def test_async_set_title_sends_patch():
-    session, _ = _make_session({})
-    await _client(session).async_set_title("hello")
-    assert session.request.call_args.kwargs["method"] == "patch"
-    assert session.request.call_args.kwargs["json"] == {"title": "hello"}
+def test_calculate_cpu_percent_returns_none_on_zero_delta():
+    stats = {
+        "cpu_stats": {
+            "cpu_usage": {"total_usage": 100},
+            "system_cpu_usage": 1000,
+            "online_cpus": 4,
+        },
+        "precpu_stats": {
+            "cpu_usage": {"total_usage": 100},
+            "system_cpu_usage": 1000,
+        },
+    }
+    assert _calculate_cpu_percent(stats) is None
 
 
-async def test_api_wrapper_timeout_raises_communication_error():
-    session, _ = _make_session(side_effect=TimeoutError("timed out"))
-    with pytest.raises(
-        DockerMonitorApiClientCommunicationError, match="Timeout"
-    ):
-        await _client(session)._api_wrapper(method="get", url="http://x")
+def test_calculate_memory_basic():
+    stats = {
+        "memory_stats": {
+            "usage": 104857600,  # 100 MB
+            "limit": 1073741824,  # 1 GB
+            "stats": {"cache": 0},
+        },
+    }
+    used, limit = _calculate_memory(stats)
+    assert used == 100.0
+    assert limit == 1024.0
 
 
-async def test_api_wrapper_client_error_raises_communication_error():
-    session, _ = _make_session(side_effect=aiohttp.ClientError("refused"))
-    with pytest.raises(
-        DockerMonitorApiClientCommunicationError, match="Error fetching"
-    ):
-        await _client(session)._api_wrapper(method="get", url="http://x")
+def test_calculate_memory_subtracts_cache():
+    stats = {
+        "memory_stats": {
+            "usage": 104857600,
+            "limit": 1073741824,
+            "stats": {"cache": 10485760},  # 10 MB
+        },
+    }
+    used, _ = _calculate_memory(stats)
+    assert used == 90.0
 
 
-async def test_api_wrapper_socket_error_raises_communication_error():
-    session, _ = _make_session(side_effect=socket.gaierror("dns"))
-    with pytest.raises(
-        DockerMonitorApiClientCommunicationError, match="Error fetching"
-    ):
-        await _client(session)._api_wrapper(method="get", url="http://x")
-
-
-async def test_api_wrapper_unexpected_exception_raises_api_error():
-    session, _ = _make_session(side_effect=RuntimeError("boom"))
-    with pytest.raises(
-        DockerMonitorApiClientError, match="Something really wrong"
-    ):
-        await _client(session)._api_wrapper(method="get", url="http://x")
-
-
-async def test_api_wrapper_auth_status_raises_auth_error():
-    session, _ = _make_session(status=401)
-    with pytest.raises(DockerMonitorApiClientAuthenticationError):
-        await _client(session)._api_wrapper(method="get", url="http://x")
-
-
-async def test_api_wrapper_returns_json_on_success(sample_payload):
-    session, _ = _make_session(sample_payload)
-    result = await _client(session)._api_wrapper(method="get", url="http://x")
-    assert result == sample_payload
+def test_calculate_memory_returns_none_on_missing():
+    used, limit = _calculate_memory({})
+    assert used is None
+    assert limit is None
