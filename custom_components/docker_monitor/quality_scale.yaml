@@ -79,8 +79,8 @@ rules:
     status: exempt
     comment: The integration surfaces no recoverable conditions that warrant a repair issue.
   stale-devices:
-    status: todo
-    comment: Removed containers go unavailable, but their device is not yet pruned from the registry.
+    status: done
+    comment: async_remove_config_entry_device lets the user delete a device once Docker stops reporting its container.
 
   # Platinum
   async-dependency: done

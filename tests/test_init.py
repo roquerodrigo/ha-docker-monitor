@@ -1,6 +1,43 @@
 from __future__ import annotations
 
+import copy
+from unittest.mock import MagicMock
+
 from homeassistant.config_entries import ConfigEntryState
+
+from custom_components.docker_monitor import async_remove_config_entry_device
+from custom_components.docker_monitor.const import DOMAIN
+from tests.conftest import SAMPLE_PAYLOAD
+
+
+async def _can_remove(identifiers, payload):
+    entry = MagicMock()
+    entry.runtime_data.coordinator.data = payload
+    device = MagicMock()
+    device.identifiers = identifiers
+    return await async_remove_config_entry_device(MagicMock(), entry, device)
+
+
+async def test_remove_rejected_for_reported_container():
+    payload = copy.deepcopy(SAMPLE_PAYLOAD)
+
+    assert await _can_remove({(DOMAIN, "prometheus")}, payload) is False
+
+
+async def test_remove_allowed_for_absent_container():
+    payload = copy.deepcopy(SAMPLE_PAYLOAD)
+
+    assert await _can_remove({(DOMAIN, "removed-container")}, payload) is True
+
+
+async def test_remove_allowed_without_payload():
+    assert await _can_remove({(DOMAIN, "prometheus")}, None) is True
+
+
+async def test_remove_allowed_for_device_without_docker_monitor_identifier():
+    payload = copy.deepcopy(SAMPLE_PAYLOAD)
+
+    assert await _can_remove({("other", "prometheus")}, payload) is True
 
 
 async def test_setup_entry_loads(hass, setup_integration):
