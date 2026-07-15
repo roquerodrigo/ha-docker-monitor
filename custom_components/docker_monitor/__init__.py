@@ -9,14 +9,19 @@ from homeassistant.const import CONF_SCAN_INTERVAL, Platform
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import DockerMonitorApiClient
-from .const import DEFAULT_SCAN_INTERVAL_SECONDS
+from .const import DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 from .data import DockerMonitorData
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.device_registry import DeviceEntry
 
-    from .data import DockerMonitorConfigData, DockerMonitorConfigEntry
+    from .data import (
+        DockerMonitorConfigData,
+        DockerMonitorConfigEntry,
+        DockerMonitorPayload,
+    )
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR]
 
@@ -67,3 +72,29 @@ async def async_reload_entry(
 ) -> None:
     """Reload config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,  # noqa: ARG001 -- HA device-removal contract requires this parameter
+    entry: DockerMonitorConfigEntry,
+    device_entry: DeviceEntry,
+) -> bool:
+    """
+    Allow removing a device whose container Docker no longer reports.
+
+    A container still present in the latest payload is refused, since the next
+    update would immediately re-create its device. Any other device — a
+    container that was stopped, renamed or removed — can be deleted. A
+    container that comes back is simply registered again.
+    """
+    # ``data`` is typed non-optional by the coordinator generic, but is ``None``
+    # until the first successful refresh — narrow defensively.
+    payload: DockerMonitorPayload | None = entry.runtime_data.coordinator.data
+    container_names = {
+        identifier[1]
+        for identifier in device_entry.identifiers
+        if identifier[0] == DOMAIN
+    }
+    if payload is None or not container_names:
+        return True
+    return container_names.isdisjoint(payload["containers"])

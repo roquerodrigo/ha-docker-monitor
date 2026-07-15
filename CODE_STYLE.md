@@ -48,8 +48,9 @@ that file in the same PR that satisfies a new rule.
   their own file.
 - **Helper functions** may live in the same file as the single class that uses
   them (e.g. `_verify_response_or_raise` in `api.py`).
-- **`__init__.py` of the integration package** wires `async_setup_entry`,
-  `async_unload_entry`, `async_reload_entry` and nothing else.
+- **`__init__.py` of the integration package** wires the entry lifecycle hooks
+  Home Assistant looks up by name — `async_setup_entry`, `async_unload_entry`,
+  `async_reload_entry`, `async_remove_config_entry_device` — and nothing else.
 
 ## Entities: one class per entity
 
