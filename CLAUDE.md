@@ -6,7 +6,7 @@ Guidance for Claude Code (claude.ai/code) agents working in this repository.
 
 Before creating, renaming or restructuring any file/class/function, **read [`CODE_STYLE.md`](./CODE_STYLE.md)**. It is the single source of truth for conventions: language, file organisation, naming, typing, properties vs `__init__`, imports, docstrings, comments, coordinator pattern, repairs/diagnostics layout, translations, lint workflow.
 
-For user-facing topics (what's included, how to fork, rename steps, layout diagram, useful commands, CI list), see [`README.md`](./README.md).
+For user-facing topics (installation, configuration, entities, options), see [`README.md`](./README.md).
 
 This file deliberately avoids restating those rules — it only adds:
 
@@ -43,15 +43,15 @@ Verify the pairing on PyPI before committing: the `requires_dist` of `pytest-hom
 The integration follows the HA `DataUpdateCoordinator` pattern:
 
 ```
-config_flow.py   → validates credentials and creates the ConfigEntry
-__init__.py      → instantiates ApiClient + DataUpdateCoordinator, performs the first refresh
-coordinator.py   → polls every scan_interval seconds; returns the typed payload
-sensor.py        → reads coordinator.data and creates the entities
+config_flow.py          → validates credentials and creates the ConfigEntry
+__init__.py             → instantiates ApiClient + DataUpdateCoordinator, performs the first refresh
+coordinator.py          → polls every scan_interval seconds; returns the typed payload
+sensor/, binary_sensor/ → read coordinator.data and create the entities (one class per file)
 ```
 
 ### Entry typing
 
-`data.py` defines `DockerMonitorConfigEntry = ConfigEntry[DockerMonitorData]` and the `DockerMonitorData(client, coordinator, integration)` dataclass. State lives on `entry.runtime_data` (auto-discarded on unload), never on `hass.data`.
+The `data/` package defines the shared typed contracts. `data/runtime.py` holds `DockerMonitorConfigEntry = ConfigEntry[DockerMonitorData]` and the `DockerMonitorData(client, coordinator, integration)` dataclass; `data/__init__.py` re-exports everything (config/options/container/payload/diagnostics types included). State lives on `entry.runtime_data` (auto-discarded on unload), never on `hass.data`.
 
 ### Config flow surface
 
@@ -101,9 +101,17 @@ attach the dump.
 
 ### Repairs
 
-`repairs.py` is the entry point HA calls when the user clicks **Fix** on an issue:
+There is no `repairs.py`. `quality_scale.yaml` marks `repair-issues: exempt` —
+the integration (a local Docker socket poller) surfaces no recoverable
+condition that would warrant a repair flow. Don't add one speculatively; if a
+real recoverable failure mode shows up, flip that quality-scale entry when
+adding the flow.
 
-- `async_create_fix_flow(hass, issue_id, data)` returns a `RepairsFlow`. Branch on `issue_id` for multiple kinds; the default returns `ConfirmRepairFlow`.
-- `async_raise_deprecated_api_issue(hass)` is the sample helper that registers an issue. Call helpers like this from the coordinator/setup when you detect a recoverable problem.
+### Device removal
 
-Issue strings live under `issues.<issue_id>` in the translation files.
+`__init__.py`'s `async_remove_config_entry_device` only allows deleting a
+device from the UI once its container name is missing from the latest
+coordinator payload (stopped, renamed or removed). A device backed by a
+container Docker still reports is refused, since the next poll would
+immediately re-create it; a container that comes back is simply registered
+again. `quality_scale.yaml` marks `stale-devices: done` for this.
