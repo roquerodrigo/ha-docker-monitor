@@ -3,13 +3,15 @@
 [![CI](https://github.com/roquerodrigo/ha-docker-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/roquerodrigo/ha-docker-monitor/actions/workflows/ci.yml)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=roquerodrigo&repository=ha-docker-monitor&category=integration)
+
+---
+
 Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the local Docker Engine API. Each named container becomes a device with CPU usage, memory usage, and health check entities.
 
 ## Installation
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=roquerodrigo&repository=ha-docker-monitor&category=integration)
-
-Or manually copy `custom_components/docker_monitor/` into your Home Assistant `config/custom_components/` directory.
+Install through HACS using the button above, or manually copy `custom_components/docker_monitor/` into your Home Assistant `config/custom_components/` directory.
 
 ## Prerequisites
 
