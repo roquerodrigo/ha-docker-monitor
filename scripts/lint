@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+set -e
+
+cd "$(dirname "$0")/.."
+
+uv run ruff format .
+uv run ruff check --fix .
+uv run mypy custom_components/docker_monitor
+uv run pytest
