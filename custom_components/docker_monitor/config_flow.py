@@ -104,17 +104,18 @@ class DockerMonitorFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         user_input: DockerMonitorConfigData,
     ) -> dict[str, str]:
         """Test connection to the Docker socket."""
+        client = DockerMonitorApiClient(
+            socket_path=user_input["socket_path"],
+        )
         try:
-            client = DockerMonitorApiClient(
-                socket_path=user_input["socket_path"],
-            )
             await client.async_connect()
             await client.async_list_container_names()
-            await client.async_close()
         except DockerMonitorApiClientCommunicationError as exception:
-            LOGGER.error(exception)
+            LOGGER.error("Failed to connect to Docker socket: %s", exception)
             return {"base": "connection"}
-        except DockerMonitorApiClientError as exception:
-            LOGGER.exception(exception)
+        except DockerMonitorApiClientError:
+            LOGGER.exception("Failed to validate Docker socket")
             return {"base": "unknown"}
+        finally:
+            await client.async_close()
         return {}

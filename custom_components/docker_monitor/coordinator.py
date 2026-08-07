@@ -29,11 +29,17 @@ class DockerMonitorDataUpdateCoordinator(
 
     config_entry: DockerMonitorConfigEntry
 
-    def __init__(self, hass: HomeAssistant, scan_interval: timedelta) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: DockerMonitorConfigEntry,
+        scan_interval: timedelta,
+    ) -> None:
         """Initialize."""
         super().__init__(
             hass=hass,
             logger=LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=scan_interval,
             always_update=False,
