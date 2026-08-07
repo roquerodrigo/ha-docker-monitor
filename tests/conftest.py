@@ -23,9 +23,9 @@ SAMPLE_CONTAINER: dict = {
 }
 
 SAMPLE_CONTAINER_NO_HEALTH: dict = {
-    "name": "ha-mcp",
+    "name": "nginx",
     "container_id": "bed43db69acb",
-    "image": "ghcr.io/roquerodrigo/ha-mcp:latest",
+    "image": "nginx:1.27",
     "status": "running",
     "cpu_percent": 0.1,
     "memory_usage_mb": 40.0,
@@ -36,7 +36,7 @@ SAMPLE_CONTAINER_NO_HEALTH: dict = {
 SAMPLE_PAYLOAD: dict = {
     "containers": {
         "prometheus": copy.deepcopy(SAMPLE_CONTAINER),
-        "ha-mcp": copy.deepcopy(SAMPLE_CONTAINER_NO_HEALTH),
+        "nginx": copy.deepcopy(SAMPLE_CONTAINER_NO_HEALTH),
     },
 }
 

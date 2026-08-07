@@ -22,8 +22,12 @@ def test_api_error_is_exception():
     assert issubclass(DockerMonitorApiClientError, Exception)
 
 
-def test_is_anonymous_hex_hash():
-    assert _is_anonymous("some-service-a1b2c3d4e5f6") is True
+def test_is_anonymous_compose_one_off():
+    assert _is_anonymous("myproject-backup-run-a1b2c3d4e5f6") is True
+
+
+def test_is_anonymous_id_like_name():
+    assert _is_anonymous("346ee219ec9f346ee219ec9f") is True
 
 
 def test_is_anonymous_short_name():
@@ -32,6 +36,14 @@ def test_is_anonymous_short_name():
 
 def test_is_anonymous_compose_name():
     assert _is_anonymous("smart-home-prometheus-1") is False
+
+
+def test_is_anonymous_keeps_named_container_with_hex_suffix():
+    assert _is_anonymous("some-service-a1b2c3d4e5f6") is False
+
+
+def test_is_anonymous_short_run_suffix():
+    assert _is_anonymous("myproject-backup-run-a1b2") is False
 
 
 def test_calculate_cpu_percent_basic():

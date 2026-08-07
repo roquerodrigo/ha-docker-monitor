@@ -16,6 +16,13 @@ from .exceptions import (
 if TYPE_CHECKING:
     from .data import DockerMonitorContainerData
 
+type JsonPrimitive = str | int | float | bool | None
+type JsonValue = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
+type JsonObject = dict[str, JsonValue]
+
+_MIN_HASH_LENGTH = 12
+_HEX_DIGITS = frozenset("0123456789abcdef")
+
 
 class DockerMonitorApiClient:
     """Async client that talks to the Docker Engine via a Unix socket."""
@@ -124,16 +131,26 @@ class DockerMonitorApiClient:
 
 
 def _is_anonymous(name: str) -> bool:
-    """Return True for auto-generated container names (hex hashes)."""
-    min_hash_len = 12
-    parts = name.split("-")
-    if len(parts) < 2:  # noqa: PLR2004
-        return False
-    last = parts[-1]
-    return len(last) >= min_hash_len and all(c in "0123456789abcdef" for c in last)
+    """
+    Return True for auto-generated container names.
+
+    Matches the two auto-generated shapes Docker actually produces — Compose
+    one-off containers (``<project>-<service>-run-<hash>``) and fully hex,
+    id-like names — without hiding a user-named container that merely ends in
+    a hex-looking segment.
+    """
+    if _is_hex_hash(name):
+        return True
+    _, separator, suffix = name.rpartition("-run-")
+    return bool(separator) and _is_hex_hash(suffix)
 
 
-def _calculate_cpu_percent(stats: dict[str, object]) -> float | None:
+def _is_hex_hash(text: str) -> bool:
+    """Return True when the text is a hex string long enough to be a hash."""
+    return len(text) >= _MIN_HASH_LENGTH and set(text) <= _HEX_DIGITS
+
+
+def _calculate_cpu_percent(stats: JsonObject) -> float | None:
     """Calculate CPU usage percentage from Docker stats."""
     cpu_stats = stats.get("cpu_stats")
     precpu_stats = stats.get("precpu_stats")
@@ -151,28 +168,31 @@ def _calculate_cpu_percent(stats: dict[str, object]) -> float | None:
     presys_usage = precpu_stats.get("system_cpu_usage")
     online_cpus = cpu_stats.get("online_cpus")
 
-    if not all(
-        isinstance(v, int | float)
-        for v in (cpu_total, precpu_total, sys_usage, presys_usage, online_cpus)
+    if (
+        not isinstance(cpu_total, int | float)
+        or not isinstance(precpu_total, int | float)
+        or not isinstance(sys_usage, int | float)
+        or not isinstance(presys_usage, int | float)
+        or not isinstance(online_cpus, int | float)
     ):
         return None
 
-    cpu_delta = float(cpu_total) - float(precpu_total)  # type: ignore[arg-type]
-    sys_delta = float(sys_usage) - float(presys_usage)  # type: ignore[arg-type]
+    cpu_delta = float(cpu_total) - float(precpu_total)
+    sys_delta = float(sys_usage) - float(presys_usage)
 
-    if sys_delta <= 0 or float(online_cpus) <= 0:  # type: ignore[arg-type]
+    if sys_delta <= 0 or float(online_cpus) <= 0:
         return None
 
     # Official `docker stats` formula: the container's share of total CPU
     # time over the sampling window, scaled by the number of online CPUs so
     # 100% means one fully-saturated core (matches the Docker CLI / API docs).
-    percent = round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)  # type: ignore[arg-type]
+    percent = round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)
     LOGGER.debug("CPU: %.2f%% (online_cpus=%s)", percent, online_cpus)
     return percent
 
 
 def _calculate_memory(
-    stats: dict[str, object],
+    stats: JsonObject,
 ) -> tuple[float | None, float | None]:
     """Calculate memory usage in MB from Docker stats."""
     mem_stats = stats.get("memory_stats")
