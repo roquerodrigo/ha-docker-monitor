@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.docker_monitor.const import DOMAIN
 from custom_components.docker_monitor.coordinator import (
@@ -15,9 +16,19 @@ from custom_components.docker_monitor.exceptions import (
 )
 
 
+def _entry(hass) -> MockConfigEntry:
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"socket_path": "/var/run/docker.sock"},
+    )
+    entry.add_to_hass(hass)
+    return entry
+
+
 def test_init_sets_domain_name(hass):
     coord = DockerMonitorDataUpdateCoordinator(
         hass=hass,
+        entry=_entry(hass),
         scan_interval=timedelta(seconds=30),
     )
     assert coord.name == DOMAIN
@@ -26,9 +37,20 @@ def test_init_sets_domain_name(hass):
 def test_init_sets_update_interval(hass):
     coord = DockerMonitorDataUpdateCoordinator(
         hass=hass,
+        entry=_entry(hass),
         scan_interval=timedelta(seconds=42),
     )
     assert coord.update_interval == timedelta(seconds=42)
+
+
+def test_init_binds_config_entry_explicitly(hass):
+    entry = _entry(hass)
+    coord = DockerMonitorDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        scan_interval=timedelta(seconds=30),
+    )
+    assert coord.config_entry is entry
 
 
 async def test_update_data_returns_payload(hass, setup_integration):

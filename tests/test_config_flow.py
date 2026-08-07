@@ -77,6 +77,7 @@ async def test_step_user_connection_error(hass, enable_custom_integrations):
         instance.async_connect = AsyncMock(
             side_effect=DockerMonitorApiClientCommunicationError("fail"),
         )
+        instance.async_close = AsyncMock()
         flow = await _start_user_flow(hass)
         result = await hass.config_entries.flow.async_configure(
             flow["flow_id"],
@@ -84,6 +85,7 @@ async def test_step_user_connection_error(hass, enable_custom_integrations):
         )
     assert result["type"] == FlowResultType.FORM
     assert result["errors"]["base"] == "connection"
+    instance.async_close.assert_awaited_once()
 
 
 async def test_step_user_unknown_error(hass, enable_custom_integrations):
@@ -101,6 +103,7 @@ async def test_step_user_unknown_error(hass, enable_custom_integrations):
         )
     assert result["type"] == FlowResultType.FORM
     assert result["errors"]["base"] == "unknown"
+    instance.async_close.assert_awaited_once()
 
 
 def _existing_entry(hass) -> MockConfigEntry:

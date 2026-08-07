@@ -67,6 +67,62 @@ async def test_unload_entry(hass, setup_integration):
     assert setup_integration.state == ConfigEntryState.NOT_LOADED
 
 
+async def test_unload_entry_closes_client(hass, setup_integration, mock_api_client):
+    assert await hass.config_entries.async_unload(setup_integration.entry_id)
+    mock_api_client.async_close.assert_awaited_once()
+
+
+async def test_setup_retries_when_connect_fails(
+    hass, mock_api_client, enable_custom_integrations
+):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.docker_monitor.const import DOMAIN
+    from custom_components.docker_monitor.exceptions import (
+        DockerMonitorApiClientCommunicationError,
+    )
+
+    mock_api_client.async_connect.side_effect = (
+        DockerMonitorApiClientCommunicationError("daemon not up yet")
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"socket_path": "/var/run/docker.sock"},
+        unique_id="var-run-docker-sock",
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state == ConfigEntryState.SETUP_RETRY
+
+
+async def test_setup_closes_client_when_first_refresh_fails(
+    hass, mock_api_client, enable_custom_integrations
+):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.docker_monitor.const import DOMAIN
+    from custom_components.docker_monitor.exceptions import (
+        DockerMonitorApiClientCommunicationError,
+    )
+
+    mock_api_client.async_list_container_names.side_effect = (
+        DockerMonitorApiClientCommunicationError("socket dropped")
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"socket_path": "/var/run/docker.sock"},
+        unique_id="var-run-docker-sock",
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state == ConfigEntryState.SETUP_RETRY
+    mock_api_client.async_close.assert_awaited_once()
+
+
 async def test_reload_entry(hass, setup_integration, mock_api_client):
     await hass.config_entries.async_reload(setup_integration.entry_id)
     await hass.async_block_till_done()

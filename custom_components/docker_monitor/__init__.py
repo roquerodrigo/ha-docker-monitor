@@ -6,12 +6,14 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 from homeassistant.const import CONF_SCAN_INTERVAL, Platform
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import DockerMonitorApiClient
 from .const import DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 from .data import DockerMonitorData
+from .exceptions import DockerMonitorApiClientError
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -37,10 +39,18 @@ async def async_setup_entry(
     )
 
     client = DockerMonitorApiClient(socket_path=config["socket_path"])
-    await client.async_connect()
+    try:
+        await client.async_connect()
+    except DockerMonitorApiClientError as exception:
+        message = f"Failed to connect to Docker at {config['socket_path']}"
+        raise ConfigEntryNotReady(message) from exception
+    # Registered before the first refresh so the client's aiohttp session is
+    # closed on any setup failure from here on, not only on a clean unload.
+    entry.async_on_unload(client.async_close)
 
     coordinator = DockerMonitorDataUpdateCoordinator(
         hass=hass,
+        entry=entry,
         scan_interval=timedelta(seconds=scan_interval_seconds),
     )
     entry.runtime_data = DockerMonitorData(
@@ -61,8 +71,14 @@ async def async_unload_entry(
     hass: HomeAssistant,
     entry: DockerMonitorConfigEntry,
 ) -> bool:
-    """Handle removal of an entry."""
-    await entry.runtime_data.client.async_close()
+    """
+    Handle removal of an entry.
+
+    The API client is not closed here: the ``entry.async_on_unload`` hook
+    registered during setup closes it after the platforms have unloaded, and
+    only when unloading succeeds — an in-flight poll never crosses a closed
+    session, and a failed unload keeps a usable client.
+    """
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
