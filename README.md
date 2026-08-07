@@ -47,7 +47,7 @@ For each container:
 - Connects to the Docker Engine API via Unix socket using [aiodocker](https://github.com/aio-libs/aiodocker).
 - Polls all running containers at the configured interval.
 - Containers are identified by name (stable across `docker compose up --force-recreate`).
-- Containers without a name (anonymous hex-hash names) are excluded.
+- Auto-named containers (Compose one-off `run` containers and id-like hex names) are excluded.
 - Stopped or removed containers become unavailable.
 
 ## License

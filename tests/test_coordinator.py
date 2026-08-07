@@ -35,7 +35,7 @@ async def test_update_data_returns_payload(hass, setup_integration):
     data = setup_integration.runtime_data.coordinator.data
     assert "containers" in data
     assert "prometheus" in data["containers"]
-    assert "ha-mcp" in data["containers"]
+    assert "nginx" in data["containers"]
 
 
 async def test_update_data_raises_update_failed_on_comm_error(

@@ -58,7 +58,7 @@ async def test_list_container_names_returns_names(client, mock_docker):
 
 async def test_list_container_names_skips_anonymous(client, mock_docker):
     named = _fake_container({"Names": ["/prometheus"]})
-    anon = _fake_container({"Names": ["/some-service-a1b2c3d4e5f6"]})
+    anon = _fake_container({"Names": ["/myproject-backup-run-a1b2c3d4e5f6"]})
     mock_docker.containers.list = AsyncMock(return_value=[named, anon])
 
     names = await client.async_list_container_names()

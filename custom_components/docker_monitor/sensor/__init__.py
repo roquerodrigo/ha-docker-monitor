@@ -13,6 +13,8 @@ if TYPE_CHECKING:
 
     from ..data import DockerMonitorConfigEntry
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001

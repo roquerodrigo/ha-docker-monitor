@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
     from ..data import DockerMonitorConfigEntry
 
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,  # noqa: ARG001
@@ -24,19 +26,24 @@ async def async_setup_entry(
 
     def _add_new_entities() -> None:
         containers = coordinator.data["containers"]
-        new_names = set(containers) - known_containers
+        # Only containers that already report a health check become "known" —
+        # a container whose health check appears later (e.g. recreated with
+        # one) still gets its sensor on that refresh.
+        new_names = {
+            name
+            for name in set(containers) - known_containers
+            if containers[name]["health_status"] is not None
+        }
         if not new_names:
             return
 
         entities = [
             DockerMonitorHealthBinarySensor(coordinator, name)
             for name in sorted(new_names)
-            if containers[name]["health_status"] is not None
         ]
 
         known_containers.update(new_names)
-        if entities:
-            async_add_entities(entities)
+        async_add_entities(entities)
 
     _add_new_entities()
     entry.async_on_unload(coordinator.async_add_listener(_add_new_entities))
