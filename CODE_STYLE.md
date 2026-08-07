@@ -1,29 +1,33 @@
 # Code Style Guide
 
 Style conventions for the `ha-docker-monitor` project. Before committing,
-run `uv run ruff format --check .`, `uv run ruff check .` and
-`uv run mypy custom_components/docker_monitor` — all must exit cleanly.
-`uv run pytest` (with the 95 % coverage gate) follows.
+run `scripts/lint` — or the underlying commands directly:
+`uv run ruff format --check .`, `uv run ruff check .`,
+`uv run mypy custom_components/docker_monitor` and `uv run pytest`
+(with the 90 % coverage gate). All must exit cleanly.
 
 **Always read this file before adding or restructuring code.**
 
 ## Quality scale target
 
-This blueprint targets **Platinum** on the [Home Assistant Integration Quality
-Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/).
-Each tier inherits every rule from the previous one:
+This integration applies the pertinent **Bronze/Silver/Gold** rules of the
+[Home Assistant Integration Quality
+Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/);
+Platinum is an aspiration, not a claim. Each tier inherits every rule from the
+previous one:
 
 - **Bronze** — UI setup via `config_flow`, config-flow tests, user-facing docs.
 - **Silver** — active code owner, automatic recovery from connection errors,
-  reauth flow, no log spam on transient failures.
+  no log spam on transient failures.
 - **Gold** — full test coverage, entity translations, reconfigure flow,
   diagnostics download, optional discovery.
 - **Platinum** — strict typing, fully async code base, efficient data handling
   (no redundant polling or state-machine writes).
 
-Promotion to a tier requires a `quality_scale.yaml` at the integration root
-listing each rule as `done` / `todo` / `exempt` (with a reason). Add or update
-that file in the same PR that satisfies a new rule.
+The `custom_components/docker_monitor/quality_scale.yaml` file lists each rule
+as `done` / `todo` / `exempt` (with a reason). Its claims must stay honest:
+update the file in the same PR that satisfies a new rule, and never mark a
+rule `done` ahead of the code.
 
 ## Language
 
@@ -40,14 +44,14 @@ that file in the same PR that satisfies a new rule.
   exception families, sensor entities for one platform) get grouped into a
   package directory with one class per submodule and an `__init__.py`
   re-exporting the public symbols.
-  - Example: `exceptions/` contains `api_client_error.py`,
-    `api_client_communication_error.py`, `api_client_authentication_error.py`,
-    plus `__init__.py`.
-- **TypedDicts and `type` aliases do not count as "classes"** for this rule —
-  they live alongside related code (typically in `data.py`) and don't need
-  their own file.
+  - Example: `exceptions/` contains `api_client_error.py` and
+    `api_client_communication_error.py`, plus `__init__.py`; the shared typed
+    contracts live in the `data/` package, one shape per submodule.
+- **TypedDicts and `type` aliases do not count as "classes"** for this rule.
+  Shared shapes get their own `data/` submodule; a TypedDict or alias with a
+  single consumer may live directly in the module that uses it.
 - **Helper functions** may live in the same file as the single class that uses
-  them (e.g. `_verify_response_or_raise` in `api.py`).
+  them (e.g. `_is_anonymous` and the stats calculators in `api.py`).
 - **`__init__.py` of the integration package** wires the entry lifecycle hooks
   Home Assistant looks up by name — `async_setup_entry`, `async_unload_entry`,
   `async_reload_entry`, `async_remove_config_entry_device` — and nothing else.
@@ -61,8 +65,8 @@ that file in the same PR that satisfies a new rule.
   (or a plain `EntityDescription` instance assigned at the class level).
   - Don't write an `<DOMAIN><Platform>Description` subclass with a
     `value_fn` / `action_fn` field.
-  - Do write `<DOMAIN><Name><Platform>` (e.g. `DockerMonitorStatusSensor`,
-    `DockerMonitorCancelButton`, `DockerMonitorDoorBinarySensor`).
+  - Do write `<DOMAIN><Name><Platform>` (e.g. `DockerMonitorCpuSensor`,
+    `DockerMonitorMemorySensor`, `DockerMonitorHealthBinarySensor`).
 - The reason: each entity is a discrete contract; mixing them through a
   generic class hides the contract behind indirection and discourages per-entity
   refinement (icons, state attributes, custom logic).
@@ -72,10 +76,10 @@ that file in the same PR that satisfies a new rule.
 - Public classes are prefixed with `DockerMonitor` (rename to
   `<YourDomain>` when forking).
 - Concrete platform entities end with the entity type:
-  `DockerMonitorSensor`, `DockerMonitorBinarySensor`,
-  `DockerMonitorSwitch`.
+  `DockerMonitorCpuSensor`, `DockerMonitorMemorySensor`,
+  `DockerMonitorHealthBinarySensor`.
 - Exception classes end with `Error`: `DockerMonitorApiClientError`,
-  `…CommunicationError`, `…AuthenticationError`.
+  `…CommunicationError`.
 - Private attributes / functions are prefixed with `_`.
 
 ## Typing
@@ -87,12 +91,14 @@ Banned: `typing.Any`, `object` as a value type, bare `dict` / `list` / `tuple` /
 
 Required:
 
-- `TypedDict` for known dict / JSON shapes (see `data.py` for the canonical
-  examples: `DockerMonitorPost`, `DockerMonitorConfigData`,
-  `DockerMonitorOptionsData`, `DockerMonitorDiagnosticsPayload`).
-- `@dataclass` for structured records (`DockerMonitorData`).
-- Named `type` aliases for recursive / shared shapes — `JsonPrimitive`,
-  `JsonValue`, `JsonObject` in `data.py`.
+- `TypedDict` for known dict / JSON shapes (see the `data/` package for the
+  canonical examples: `DockerMonitorConfigData`, `DockerMonitorOptionsData`,
+  `DockerMonitorContainerData`, `DockerMonitorPayload`,
+  `DockerMonitorDiagnosticsPayload`).
+- `@dataclass` for structured records (`DockerMonitorData` in
+  `data/runtime.py`).
+- Named `type` aliases for recursive / shared shapes (e.g. JSON value
+  aliases for payloads whose schema is not ours to pin down).
 - `frozenset[str]` / `tuple[str, ...]` for fixed string collections.
 - `cast("TypedDictName", value)` at HA framework boundaries that hand us a
   permissive type (e.g. `entry.data` is `MappingProxyType[str, Any]`).
@@ -169,7 +175,7 @@ with a one-line comment explaining the deliberate narrowing — see
 
 - Levels:
   - `debug` — successful fetch summaries, every-poll diagnostics.
-  - `info` — one-shot lifecycle (setup complete, reauth flow started).
+  - `info` — one-shot lifecycle (setup complete, entry reloaded).
   - `warning` — recoverable failures (transient API error, falling back).
   - `error` / `exception` — unrecoverable in current cycle; pair `exception`
     with caught exceptions inside `except` blocks for full tracebacks.
@@ -181,63 +187,56 @@ with a one-line comment explaining the deliberate narrowing — see
 
 - Format: `"Failed to <verb> <object>: <cause>"` where `<cause>` is the
   exception or a short reason. Keep them short and grep-able.
-- Pre-validate inputs before the network call so user-facing errors point at
-  the bad input, not a downstream traceback (`config_flow._validate` rejects
-  malformed credentials before contacting the API).
-- Custom exceptions get the same hierarchy:
-  `DockerMonitorApiClientError` (base) → `…CommunicationError` (timeout,
-  connection, DNS) and `…AuthenticationError` (401/403). Wrap raw upstream
-  errors at the API client boundary; everything above only catches the
-  custom hierarchy.
+- Validate before creating the entry: `config_flow._validate` probes the
+  socket with a real connection so user-facing errors point at the bad
+  socket path, not a downstream traceback.
+- Custom exceptions form a hierarchy: `DockerMonitorApiClientError` (base;
+  also raised when the client is used before `async_connect`) →
+  `…CommunicationError` (unreachable socket, `DockerError`, `OSError`).
+  There is no authentication error type — the Docker Unix socket is
+  unauthenticated. Wrap raw upstream errors at the API client boundary;
+  everything above only catches the custom hierarchy.
 
 ## Coordinator and runtime data
 
 - All API state flows through `entry.runtime_data: DockerMonitorData`
-  (`data.py`). Never store integration state in `hass.data` — `runtime_data` is
-  auto-discarded on unload, the legacy `hass.data[DOMAIN][entry_id]` pattern is
-  not.
-- The coordinator is typed as `DataUpdateCoordinator[DockerMonitorPost]`
-  (or whatever your real payload TypedDict is). `_async_update_data` returns
-  the typed payload.
+  (`data/runtime.py`). Never store integration state in `hass.data` —
+  `runtime_data` is auto-discarded on unload, the legacy
+  `hass.data[DOMAIN][entry_id]` pattern is not.
+- The coordinator is typed as `DataUpdateCoordinator[DockerMonitorPayload]`.
+  `_async_update_data` returns the typed payload.
 - Use `await coordinator.async_config_entry_first_refresh()` during
   `async_setup_entry` (not `async_refresh()`) — a failed first refresh raises
   `ConfigEntryNotReady` and HA retries with backoff automatically.
 - Pass `always_update=False` to the coordinator when the payload TypedDict
   compares cleanly with `__eq__`; HA then skips listener callbacks and state
   writes when the data hasn't changed.
-- Use `self.async_contexts()` inside `_async_update_data` to scope API work to
-  the entities currently subscribed — disabled entities shouldn't drive
-  network calls.
-- Error mapping inside `_async_update_data`:
-  - Communication errors → `raise UpdateFailed("Failed to …: %s" % err)`. Pass
-    `retry_after=<seconds>` when the upstream signals an explicit backoff (e.g.
-    HTTP 429 `Retry-After`).
-  - Authentication errors → `raise ConfigEntryAuthFailed(...)` — HA cancels
-    further updates and starts the `SOURCE_REAUTH` flow.
-  - Never let raw upstream exception strings reach `UpdateFailed` when they
-    could carry tokens; convert to a sanitized message at the API client.
+- Error mapping inside `_async_update_data`: every
+  `DockerMonitorApiClientError` becomes `UpdateFailed`, with the message
+  already sanitized at the API client boundary. There is no
+  `ConfigEntryAuthFailed` path — the Docker socket has no credentials.
 
-## Config / options / repairs / diagnostics
+## Config / options / diagnostics / repairs
 
-- `config_flow.py` carries `user`, `reauth`, `reauth_confirm` and `reconfigure`
-  steps, all sharing one `_validate` helper and one `_credentials_schema`
-  builder.
+- `config_flow.py` carries the `user` and `reconfigure` steps, sharing one
+  `_validate` helper and one `_socket_schema` builder. There is no reauth
+  flow — the socket is unauthenticated.
 - `options_flow.py` holds the single `DockerMonitorOptionsFlow`
   class. New options keys go into the `DockerMonitorOptionsData`
-  TypedDict in `data.py`.
-- `repairs.py` exposes `async_create_fix_flow`. Sample helpers like
-  `async_raise_deprecated_api_issue` show how to register issues from anywhere
-  in the integration.
+  TypedDict in `data/options_data.py`.
 - `diagnostics.py` returns `DockerMonitorDiagnosticsPayload`. Sensitive
-  keys go into the `TO_REDACT: frozenset[str]` constant.
+  keys go into the `TO_REDACT: frozenset[str]` constant — currently empty,
+  because a socket path is not a secret.
+- There is no `repairs.py`; the integration surfaces no recoverable condition
+  that warrants a repair flow (see `CLAUDE.md`). Don't add one speculatively.
 
 ## Translations
 
 - Two locales: `en.json` and `pt-BR.json`. `tests/test_translations.py`
   parametrizes over every locale and fails if their nested key sets diverge.
-- Issue strings live under `issues.<issue_id>`; options strings under
-  `options.step.init.data`; flow strings under `config.step.<step_id>`;
-  entity names under `entity.<platform>.<key>.name`.
+- Options strings live under `options.step.init.data`; flow strings under
+  `config.step.<step_id>`, `config.error` and `config.abort`; entity names
+  under `entity.<platform>.<key>.name`.
 
 ## HACS publishing requirements
 
@@ -265,16 +264,17 @@ most recent GitHub releases to users, so keep the changelog grep-able.
 ## Pre-commit hooks
 
 `pre-commit` is a dev dependency (`pyproject.toml`) and `.pre-commit-config.yaml`
-mirrors the lint commands (ruff format, ruff check). Install once per
-clone:
+runs the lint commands (ruff format, ruff check, mypy) as local `uv run`
+hooks, so the hook tools are always the versions pinned in `pyproject.toml`.
+Install once per clone:
 
 ```bash
 pre-commit install
 ```
 
-The hook runs the same gates as CI on every commit. Skip it only on
-emergency `git commit --no-verify` and immediately re-run `uv run ruff format --check .`
-and `uv run ruff check .`.
+The hooks run the same gates as CI on every commit. Skip them only on
+emergency `git commit --no-verify` and immediately re-run `scripts/lint`
+(or the direct commands).
 
 ## Conventional commits
 
@@ -302,10 +302,11 @@ which `release-please` parses to bump the version and generate `CHANGELOG.md`:
 - Ruff configuration lives in `pyproject.toml` (`[tool.ruff]`) with `select = ["ALL"]`.
 - Mypy configuration lives in `pyproject.toml` (`[tool.mypy]`). Run both with
   `uv run ruff check .` and `uv run mypy custom_components/docker_monitor`.
-- After every change run `uv run ruff format --check .`, `uv run ruff check .`,
+- After every change run `scripts/lint`, or the direct commands:
+  `uv run ruff format --check .`, `uv run ruff check .`,
   `uv run mypy custom_components/docker_monitor` and `uv run pytest`.
   Both gates mirror CI.
-- Tests live in `tests/`, mirroring the production layout. The 95 % coverage
+- Tests live in `tests/`, mirroring the production layout. The 90 % coverage
   gate (`pyproject.toml`, `[tool.pytest.ini_options]`) prevents untested code
   from sneaking in. When a test
   exercises a state that is impossible under the new types, update or remove
