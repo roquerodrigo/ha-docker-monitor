@@ -1,5 +1,7 @@
 {
     "name": "Docker Monitor",
+    "zip_release": true,
+    "filename": "docker_monitor.zip",
     "homeassistant": "2026.8.0",
     "hacs": "2.0.5"
 }
