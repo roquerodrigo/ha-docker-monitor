@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.1.1...v1.2.0) (2026-08-24)
+
+
+### Features
+
+* **hacs:** ship the install zip with every release ([3159b6d](https://github.com/roquerodrigo/ha-docker-monitor/commit/3159b6d32448e6eeda716d8352b1bdd2d75d6e41))
+
+
+### Development Dependencies
+
+* **deps-dev:** bump the python-deps group across 1 directory with 3 updates ([64a6c16](https://github.com/roquerodrigo/ha-docker-monitor/commit/64a6c166dc884ef64d06aba78cf24135af8bd5c6))
+
+
+### Documentation
+
+* normalize README header layout ([6841b6e](https://github.com/roquerodrigo/ha-docker-monitor/commit/6841b6e0f52d449b5bc5cd4e87d24e805eab180b))
+
 ## [1.1.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.1.0...v1.1.1) (2026-08-07)
 
 
