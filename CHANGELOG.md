@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.2.0...v1.2.1) (2026-09-02)
+
+
+### Documentation
+
+* add GitHub Sponsors button and support section ([3749cd2](https://github.com/roquerodrigo/ha-docker-monitor/commit/3749cd2b8f24985a1983c159efcc5cef3df6b97b))
+
 ## [1.2.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.1.1...v1.2.0) (2026-08-24)
 
 
