@@ -15,16 +15,18 @@ This file deliberately avoids restating those rules — it only adds:
 
 ## Verification workflow
 
-**After every code change, always run lint then tests, in that order, before declaring the task done.** Run `scripts/lint` (a thin wrapper chaining the four commands) or the tools directly:
+**After every code change, always run lint then tests, in that order, before declaring the task done.** Run `scripts/lint` (a thin wrapper chaining the five commands) or the tools directly:
 
 ```bash
 uv run ruff format --check .
 uv run ruff check .
 uv run mypy custom_components/docker_monitor
 uv run pytest
+node --check custom_components/docker_monitor/www/docker-monitor-card.js
 ```
 
 - Lint runs `ruff format`, `ruff check` and `mypy` — all configured in `pyproject.toml`. Fix any failure and re-run before moving on.
+- The bundled Lovelace card is plain JavaScript with no Python gate; `node --check` is its syntax check (CI runs the same command).
 - `pytest` enforces a **90 % coverage gate** (`--cov-fail-under` in `pyproject.toml`).
 
 Both gates mirror CI (`.github/workflows/ci.yml`). Skip this only when the change literally cannot affect lint or tests (e.g., README-only edits).
@@ -106,6 +108,20 @@ the integration (a local Docker socket poller) surfaces no recoverable
 condition that would warrant a repair flow. Don't add one speculatively; if a
 real recoverable failure mode shows up, flip that quality-scale entry when
 adding the flow.
+
+### Bundled Lovelace card
+
+`www/docker-monitor-card.js` is a zero-build web component that lists the
+containers with health, CPU and memory. `card_registration.py`
+(`DockerMonitorCardRegistration`) serves the `www/` directory under
+`STATIC_URL_PREFIX` and registers the card as a Lovelace **dashboard
+resource** (URL versioned with `?v=<integration version>`), falling back to
+`add_extra_js_url` only when resources are YAML-managed. `async_setup_entry`
+registers it before anything else; `async_remove_entry` drops the resource
+once the last entry is gone. The manifest declares `http` and `lovelace` as
+dependencies so both are set up first. The card discovers containers by
+`hass.entities` with `platform == "docker_monitor"` and matches entities by
+`translation_key` (`cpu`, `memory`, `health`), so it is language independent.
 
 ### Device removal
 

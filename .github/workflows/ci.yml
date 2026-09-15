@@ -16,6 +16,12 @@ jobs:
   lint:
     uses: roquerodrigo/workflows/.github/workflows/python-lint.yml@main
 
+  card-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check custom_components/docker_monitor/www/docker-monitor-card.js
+
   tests:
     needs: lint
     uses: roquerodrigo/workflows/.github/workflows/python-test.yml@main
@@ -26,7 +32,7 @@ jobs:
 
   update-pr-branch:
     if: github.event_name == 'pull_request'
-    needs: [lint, tests, validate]
+    needs: [lint, card-syntax, tests, validate]
     permissions:
       contents: write
       pull-requests: write

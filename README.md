@@ -46,6 +46,33 @@ For each container:
 
 - **Scan interval** (default: 15 seconds, minimum: 10 seconds)
 
+## Bundled Lovelace card
+
+The integration ships a custom dashboard card that lists the monitored
+containers with their health check status, CPU usage and memory usage. The
+card is served by the integration itself and registered as a Lovelace
+dashboard resource automatically — no manual resource setup is required. Add
+it to any dashboard with:
+
+```yaml
+type: custom:docker-monitor-card
+```
+
+| Option | Default | Description |
+|---|---|---|
+| `title` | localized "Containers" | Card header |
+| `devices` | all | Device ids of the containers to show |
+| `mode` | `all` | `all` or `problems` (unhealthy, stopped or above a warning threshold) |
+| `sort` | `name` | `name`, `cpu`, `memory` or `health` |
+| `columns` | `2` | Maximum columns (1–6); wraps down on narrow widths |
+| `cpu_warning` | `80` | CPU % at or above which a container is flagged |
+| `memory_warning` | `80` | Memory % of the container limit at or above which it is flagged |
+| `show_unavailable` | `true` | Include stopped containers |
+
+The card also provides a visual editor in the dashboard UI, an in-card
+"All / Problems" toggle, and is translated into English and Portuguese
+(Brazil). Clicking a container opens the more-info dialog of its CPU sensor.
+
 ## How it works
 
 - Connects to the Docker Engine API via Unix socket using [aiodocker](https://github.com/aio-libs/aiodocker).
