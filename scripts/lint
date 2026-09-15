@@ -8,3 +8,4 @@ uv run ruff format .
 uv run ruff check --fix .
 uv run mypy custom_components/docker_monitor
 uv run pytest
+node --check custom_components/docker_monitor/www/docker-monitor-card.js

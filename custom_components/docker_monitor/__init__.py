@@ -10,6 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import DockerMonitorApiClient
+from .card_registration import DockerMonitorCardRegistration
 from .const import DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 from .data import DockerMonitorData
@@ -33,6 +34,9 @@ async def async_setup_entry(
     entry: DockerMonitorConfigEntry,
 ) -> bool:
     """Set up Docker Monitor from a config entry."""
+    integration = async_get_loaded_integration(hass, entry.domain)
+    await DockerMonitorCardRegistration(hass, str(integration.version)).async_register()
+
     config = cast("DockerMonitorConfigData", entry.data)
     scan_interval_seconds: int = int(
         entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS),
@@ -56,7 +60,7 @@ async def async_setup_entry(
     entry.runtime_data = DockerMonitorData(
         client=client,
         coordinator=coordinator,
-        integration=async_get_loaded_integration(hass, entry.domain),
+        integration=integration,
     )
 
     await coordinator.async_config_entry_first_refresh()
@@ -80,6 +84,17 @@ async def async_unload_entry(
     session, and a failed unload keeps a usable client.
     """
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(
+    hass: HomeAssistant,
+    entry: DockerMonitorConfigEntry,
+) -> None:
+    """Clean up the card registration when the last entry is removed."""
+    if hass.config_entries.async_entries(DOMAIN):
+        return
+    integration = async_get_loaded_integration(hass, entry.domain)
+    await DockerMonitorCardRegistration(hass, str(integration.version)).async_remove()
 
 
 async def async_reload_entry(
