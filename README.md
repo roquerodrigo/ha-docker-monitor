@@ -71,7 +71,7 @@ type: custom:docker-monitor-card
 
 The card also provides a visual editor in the dashboard UI, an in-card
 "All / Problems" toggle, and is translated into English and Portuguese
-(Brazil). Clicking a container opens the more-info dialog of its CPU sensor.
+(Brazil). Clicking a container opens its device page.
 
 ## How it works
 
