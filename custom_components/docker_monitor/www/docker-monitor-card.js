@@ -282,7 +282,6 @@ class DockerMonitorCard extends HTMLElement {
 
       items.push({
         deviceId,
-        moreInfoEntity: byKey.cpu,
         name: device.name_by_user || device.name || cpuState?.attributes?.friendly_name || byKey.cpu,
         image: device.sw_version || "",
         available,
@@ -355,7 +354,7 @@ class DockerMonitorCard extends HTMLElement {
         const memoryWidth = item.memoryPercent ?? 0;
         const tooltip = item.image ? `${item.name} · ${item.image}` : item.name;
         return `
-          <div class="item ${item.available ? "" : "is-stopped"}" data-entity="${esc(item.moreInfoEntity)}" title="${esc(tooltip)}">
+          <div class="item ${item.available ? "" : "is-stopped"}" data-device="${esc(item.deviceId)}" title="${esc(tooltip)}">
             <div class="head">
               <div class="badge" style="color:${healthColor};background:color-mix(in srgb, ${healthColor} 18%, transparent)">
                 <ha-icon icon="mdi:docker"></ha-icon>
@@ -404,15 +403,16 @@ class DockerMonitorCard extends HTMLElement {
     });
 
     this.shadowRoot.querySelectorAll(".item").forEach((item) => {
-      item.addEventListener("click", () => this._showMore(item.dataset.entity));
+      item.addEventListener("click", () => this._openDevicePage(item.dataset.device));
     });
   }
 
-  /** Open the more-info dialog for an entity (standard HA behaviour). */
-  _showMore(entityId) {
-    if (!entityId) return;
-    this.dispatchEvent(
-      new CustomEvent("hass-more-info", { detail: { entityId }, bubbles: true, composed: true })
+  /** Navigate to the device page of a container (same mechanism as HA's navigate()). */
+  _openDevicePage(deviceId) {
+    if (!deviceId) return;
+    window.history.pushState(null, "", `/config/devices/device/${deviceId}`);
+    window.dispatchEvent(
+      new CustomEvent("location-changed", { detail: { replace: false }, bubbles: true, composed: true })
     );
   }
 
