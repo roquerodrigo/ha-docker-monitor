@@ -13,6 +13,7 @@ class DockerMonitorContainerData(TypedDict):
     image: str
     status: str
     cpu_percent: float | None
+    online_cpus: int | None
     memory_usage_mb: float | None
     memory_limit_mb: float | None
     health_status: str | None

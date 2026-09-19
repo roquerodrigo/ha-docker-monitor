@@ -105,7 +105,7 @@ async def test_get_container_data_returns_data(client, mock_docker):
                 "memory_stats": {
                     "usage": 104857600,
                     "limit": 1073741824,
-                    "stats": {"cache": 0},
+                    "stats": {"inactive_file": 0},
                 },
             }
         ],
@@ -125,6 +125,7 @@ async def test_get_container_data_returns_data(client, mock_docker):
     data = await client.async_get_container_data("prometheus")
     assert data["name"] == "prometheus"
     assert data["cpu_percent"] == 40.0
+    assert data["online_cpus"] == 4
     assert data["memory_usage_mb"] == 100.0
     assert data["health_status"] == "healthy"
     assert data["container_id"] == "346ee219ec9f"

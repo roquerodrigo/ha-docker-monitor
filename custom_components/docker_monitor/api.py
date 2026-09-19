@@ -99,6 +99,7 @@ class DockerMonitorApiClient:
         stats = stats_list[0] if stats_list else {}
 
         cpu_percent = _calculate_cpu_percent(stats)
+        online_cpus = _read_online_cpus(stats)
         memory_usage_mb, memory_limit_mb = _calculate_memory(stats)
 
         health_obj = inspect.get("State", {}).get("Health")
@@ -116,6 +117,7 @@ class DockerMonitorApiClient:
             "image": image,
             "status": status,
             "cpu_percent": cpu_percent,
+            "online_cpus": online_cpus,
             "memory_usage_mb": memory_usage_mb,
             "memory_limit_mb": memory_limit_mb,
             "health_status": health_status,
@@ -191,6 +193,17 @@ def _calculate_cpu_percent(stats: JsonObject) -> float | None:
     return percent
 
 
+def _read_online_cpus(stats: JsonObject) -> int | None:
+    """Return the number of CPUs available to the container."""
+    cpu_stats = stats.get("cpu_stats")
+    if not isinstance(cpu_stats, dict):
+        return None
+    online_cpus = cpu_stats.get("online_cpus")
+    if not isinstance(online_cpus, int | float) or online_cpus <= 0:
+        return None
+    return int(online_cpus)
+
+
 def _calculate_memory(
     stats: JsonObject,
 ) -> tuple[float | None, float | None]:
@@ -204,16 +217,26 @@ def _calculate_memory(
     if not isinstance(usage, int | float) or not isinstance(limit, int | float):
         return None, None
 
-    cache: int | float = 0
-    inner_stats = mem_stats.get("stats")
-    if isinstance(inner_stats, dict):
-        raw_cache = inner_stats.get("cache", 0)
-        if isinstance(raw_cache, int | float):
-            cache = raw_cache
-
-    used_mb = round((usage - cache) / 1024 / 1024, 1)
+    used_mb = round((usage - _page_cache(mem_stats, usage)) / 1024 / 1024, 1)
     limit_mb = round(limit / 1024 / 1024, 1)
 
     LOGGER.debug("Memory: used=%s MB, limit=%s MB", used_mb, limit_mb)
 
     return used_mb, limit_mb
+
+
+def _page_cache(mem_stats: JsonObject, usage: float) -> float:
+    """
+    Return the page cache to exclude from the usage, as ``docker stats`` does.
+
+    cgroup v1 reports it as ``total_inactive_file`` and cgroup v2 as
+    ``inactive_file``; the CLI only subtracts it when it is below the usage.
+    """
+    inner_stats = mem_stats.get("stats")
+    if not isinstance(inner_stats, dict):
+        return 0
+    for key in ("total_inactive_file", "inactive_file"):
+        value = inner_stats.get(key)
+        if isinstance(value, int | float) and value < usage:
+            return value
+    return 0
