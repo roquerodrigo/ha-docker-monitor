@@ -38,8 +38,8 @@ For each container:
 
 | Entity | Type | Description |
 |---|---|---|
-| CPU | Sensor | CPU usage percentage |
-| Memory | Sensor | Memory usage in MB |
+| CPU | Sensor | CPU usage percentage, as reported by `docker stats` (100 % is one fully used CPU); the `online_cpus` attribute holds how many CPUs the container can use |
+| Memory | Sensor | Memory usage in MB, excluding the page cache as `docker stats` does; the `memory_limit_mb` attribute holds the container limit |
 | Health | Binary Sensor | Health check status (only for containers with a health check configured) |
 
 ## Options
@@ -65,11 +65,14 @@ type: custom:docker-monitor-card
 | `mode` | `all` | `all` or `problems` (unhealthy, stopped or above a warning threshold) |
 | `sort` | `name` | `name`, `cpu`, `memory` or `health` |
 | `columns` | `2` | Maximum columns (1–6); wraps down on narrow widths |
-| `cpu_warning` | `80` | CPU % at or above which a container is flagged |
+| `cpu_warning` | `80` | CPU % of the CPUs available to the container at or above which it is flagged |
 | `memory_warning` | `80` | Memory % of the container limit at or above which it is flagged |
 | `show_unavailable` | `true` | Include stopped containers |
 
-The card also provides a visual editor in the dashboard UI, an in-card
+Both bars share one scale, the share of what the container can use: CPU
+usage over the CPUs available to it and memory usage over its limit. The
+absolute figures (CPUs in use, MB used and the limit) are shown next to each
+bar. The card also provides a visual editor in the dashboard UI, an in-card
 "All / Problems" toggle, and is translated into English and Portuguese
 (Brazil). Clicking a container opens its device page.
 

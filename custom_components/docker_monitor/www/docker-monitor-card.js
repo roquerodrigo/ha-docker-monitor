@@ -12,6 +12,12 @@
  * health) are matched by their integration translation keys — so discovery is
  * language independent.
  *
+ * Both bars share one scale: the share of what the container can use. CPU is
+ * the sensor value (Docker's per-core percentage, where 100 is one saturated
+ * core) divided by the `online_cpus` attribute; memory is the usage divided by
+ * the `memory_limit_mb` attribute. The warning thresholds apply to those same
+ * shares.
+ *
  * Config:
  *   type: custom:docker-monitor-card
  *   title: Containers          # optional; defaults to a localized "Containers"
@@ -20,7 +26,8 @@
  *   sort: name                 # name | cpu | memory | health (default name)
  *   columns: 2                 # max columns (1-6, default 2); wraps down on
  *                              #   narrow widths so it stays responsive
- *   cpu_warning: 80            # CPU % at or above which a container is flagged
+ *   cpu_warning: 80            # CPU % (of the CPUs available to the
+ *                              #   container) at or above which it is flagged
  *   memory_warning: 80         # memory % (of the limit) at or above which a
  *                              #   container is flagged
  *   show_unavailable: true     # include stopped containers (default true)
@@ -146,6 +153,12 @@ function percentage(value, fallback, name) {
   return value;
 }
 
+/** Share (0-100) of a total, or null when either side is unknown. */
+function share(value, total) {
+  if (value === null || !Number.isFinite(total) || total <= 0) return null;
+  return Math.min(100, (value / total) * 100);
+}
+
 /** Format a memory amount in MB as a compact string with a unit. */
 function formatMemory(megabytes) {
   if (megabytes === null) return "—";
@@ -153,10 +166,24 @@ function formatMemory(megabytes) {
   return `${megabytes >= 100 ? Math.round(megabytes) : megabytes.toFixed(1)} MB`;
 }
 
-/** Format a CPU percentage as a compact string. */
-function formatCpu(percent) {
+/** Format a share of the available resource as a compact percentage. */
+function formatPercent(percent) {
   if (percent === null) return "—";
-  return `${percent >= 100 ? Math.round(percent) : percent.toFixed(1)}%`;
+  return `${percent >= 10 ? Math.round(percent) : percent.toFixed(1)}%`;
+}
+
+/** Format the CPU usage as cores in use out of the cores available. */
+function formatCpuDetail(percent, onlineCpus) {
+  if (percent === null) return "";
+  if (!Number.isFinite(onlineCpus) || onlineCpus <= 0) return `${percent.toFixed(1)}%`;
+  return `${(percent / 100).toFixed(2)} / ${onlineCpus} CPU`;
+}
+
+/** Format the memory usage out of the container limit. */
+function formatMemoryDetail(megabytes, limitMegabytes) {
+  if (megabytes === null) return "";
+  if (!Number.isFinite(limitMegabytes) || limitMegabytes <= 0) return formatMemory(megabytes);
+  return `${formatMemory(megabytes)} / ${formatMemory(limitMegabytes)}`;
 }
 
 class DockerMonitorCard extends HTMLElement {
@@ -265,19 +292,18 @@ class DockerMonitorCard extends HTMLElement {
 
       const available = Boolean(cpuState) && cpuState.state !== "unavailable";
       const cpu = parseNumber(cpuState);
+      const onlineCpus = Number(cpuState?.attributes?.online_cpus);
+      const cpuPercent = share(cpu, Number.isFinite(onlineCpus) && onlineCpus > 0 ? onlineCpus * 100 : 100);
       const memory = parseNumber(memoryState);
       const memoryLimit = Number(memoryState?.attributes?.memory_limit_mb);
-      const memoryPercent =
-        memory !== null && Number.isFinite(memoryLimit) && memoryLimit > 0
-          ? Math.min(100, (memory / memoryLimit) * 100)
-          : null;
+      const memoryPercent = share(memory, memoryLimit);
 
       let health = "none";
       if (!available) health = "stopped";
       else if (healthState?.state === "on") health = "unhealthy";
       else if (healthState?.state === "off") health = "healthy";
 
-      const cpuHigh = cpu !== null && cpu >= this._config.cpuWarning;
+      const cpuHigh = cpuPercent !== null && cpuPercent >= this._config.cpuWarning;
       const memoryHigh = memoryPercent !== null && memoryPercent >= this._config.memoryWarning;
 
       items.push({
@@ -287,8 +313,11 @@ class DockerMonitorCard extends HTMLElement {
         available,
         health,
         cpu,
+        onlineCpus,
+        cpuPercent,
         cpuHigh,
         memory,
+        memoryLimit,
         memoryPercent,
         memoryHigh,
         problem: !available || health === "unhealthy" || cpuHigh || memoryHigh,
@@ -301,9 +330,9 @@ class DockerMonitorCard extends HTMLElement {
       if (a.available !== b.available) return a.available ? -1 : 1;
       switch (this._config.sort) {
         case "cpu":
-          return (b.cpu ?? -1) - (a.cpu ?? -1) || collator.compare(a.name, b.name);
+          return (b.cpuPercent ?? -1) - (a.cpuPercent ?? -1) || collator.compare(a.name, b.name);
         case "memory":
-          return (b.memory ?? -1) - (a.memory ?? -1) || collator.compare(a.name, b.name);
+          return (b.memoryPercent ?? -1) - (a.memoryPercent ?? -1) || collator.compare(a.name, b.name);
         case "health":
           return HEALTH_ORDER[a.health] - HEALTH_ORDER[b.health] || collator.compare(a.name, b.name);
         default:
@@ -340,7 +369,7 @@ class DockerMonitorCard extends HTMLElement {
       title,
       this._config.sort,
       this._config.columns,
-      shown.map((i) => [i.deviceId, i.name, i.image, i.health, i.cpu, i.memory, i.memoryPercent, i.cpuHigh, i.memoryHigh]),
+      shown.map((i) => [i.deviceId, i.name, i.image, i.health, i.cpu, i.cpuPercent, i.memory, i.memoryPercent, i.cpuHigh, i.memoryHigh]),
     ]);
     if (signature === this._signature) return;
     this._signature = signature;
@@ -350,7 +379,7 @@ class DockerMonitorCard extends HTMLElement {
         const healthColor = this._healthColor(item);
         const cpuColor = this._metricColor(item.cpuHigh);
         const memoryColor = this._metricColor(item.memoryHigh);
-        const cpuWidth = item.cpu === null ? 0 : Math.max(0, Math.min(100, item.cpu));
+        const cpuWidth = item.cpuPercent ?? 0;
         const memoryWidth = item.memoryPercent ?? 0;
         const tooltip = item.image ? `${item.name} · ${item.image}` : item.name;
         return `
@@ -365,12 +394,18 @@ class DockerMonitorCard extends HTMLElement {
             <div class="metric">
               <span class="label">${esc(t("card.cpu"))}</span>
               <div class="bar"><div class="fill" style="width:${cpuWidth}%;background:${cpuColor}"></div></div>
-              <span class="value" style="color:${cpuColor}">${esc(formatCpu(item.cpu))}</span>
+              <span class="value">
+                <span class="share" style="color:${cpuColor}">${esc(formatPercent(item.cpuPercent))}</span>
+                <span class="detail">${esc(formatCpuDetail(item.cpu, item.onlineCpus))}</span>
+              </span>
             </div>
             <div class="metric">
               <span class="label">${esc(t("card.memory"))}</span>
               <div class="bar"><div class="fill" style="width:${memoryWidth}%;background:${memoryColor}"></div></div>
-              <span class="value" style="color:${memoryColor}">${esc(formatMemory(item.memory))}</span>
+              <span class="value">
+                <span class="share" style="color:${memoryColor}">${esc(formatPercent(item.memoryPercent))}</span>
+                <span class="detail">${esc(formatMemoryDetail(item.memory, item.memoryLimit))}</span>
+              </span>
             </div>
           </div>`;
       })
@@ -537,12 +572,22 @@ class DockerMonitorCard extends HTMLElement {
         transition: width .3s ease;
       }
       .value {
-        flex: 0 0 68px;
-        text-align: right;
-        font-size: 0.8125rem;
-        font-weight: 600;
+        flex: 0 0 auto;
+        min-width: 68px;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        line-height: 1.2;
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
+      }
+      .share {
+        font-size: 0.8125rem;
+        font-weight: 600;
+      }
+      .detail {
+        font-size: 0.6875rem;
+        color: var(--secondary-text-color);
       }
       .empty {
         grid-column: 1 / -1;
