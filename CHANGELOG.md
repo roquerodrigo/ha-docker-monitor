@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.3.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.2.0...v1.3.0) (2026-09-19)
+
+
+### Features
+
+* add bundled Lovelace card for containers ([fb9f5f5](https://github.com/roquerodrigo/ha-docker-monitor/commit/fb9f5f5f5f4a4f6bc81448fb6f5187f575d2b160))
+* **card:** add in-card sort buttons with direction toggle ([3c3897b](https://github.com/roquerodrigo/ha-docker-monitor/commit/3c3897bc43b8e83f446e52d49db07df1dbd055fc))
+* **card:** open the container device page on click ([c2a430f](https://github.com/roquerodrigo/ha-docker-monitor/commit/c2a430f0cb44ad98fb084eb54fea30f01ac8cadf))
+* **card:** scale the CPU and memory bars by what the container can use ([8014d45](https://github.com/roquerodrigo/ha-docker-monitor/commit/8014d45c6d5fc79824b4ee2f496a381cf02c11c9))
+
+
+### Bug Fixes
+
+* **api:** exclude the page cache from memory usage as docker stats does ([c3a5ad1](https://github.com/roquerodrigo/ha-docker-monitor/commit/c3a5ad1ec2a2b7ac300c02e5a49a512adaf811e7))
+
+
+### Dependencies
+
+* **deps:** bump anyio from 4.13.0 to 4.14.2 ([85c326e](https://github.com/roquerodrigo/ha-docker-monitor/commit/85c326eb42e4847024b09a078f7e4c5cea886f1e))
+* **deps:** bump pip from 26.1.2 to 26.2 ([2aa0eb5](https://github.com/roquerodrigo/ha-docker-monitor/commit/2aa0eb53cd6da0c2720c57d0d810bc6f5688b50e))
+* **deps:** bump pip from 26.2 to 26.2.1 ([a5af867](https://github.com/roquerodrigo/ha-docker-monitor/commit/a5af8676c3cf00d92892c739a29bb304b91119c0))
+
+
+### Development Dependencies
+
+* **deps-dev:** bump ruff ([294ccb4](https://github.com/roquerodrigo/ha-docker-monitor/commit/294ccb4f45e129b27edd80f007504fbd3d2c7b59))
+* **deps-dev:** bump ruff in the python-deps group ([d5eda79](https://github.com/roquerodrigo/ha-docker-monitor/commit/d5eda79812b68107a75f73e173d7f43fe2ba33b6))
+
+
+### Documentation
+
+* add GitHub Sponsors button and support section ([3749cd2](https://github.com/roquerodrigo/ha-docker-monitor/commit/3749cd2b8f24985a1983c159efcc5cef3df6b97b))
+
 ## [1.2.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.1.1...v1.2.0) (2026-08-24)
 
 
