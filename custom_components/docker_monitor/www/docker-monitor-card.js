@@ -24,6 +24,9 @@
  *   devices: [...]             # optional: device ids to show (default: all)
  *   mode: all                  # all | problems (default all)
  *   sort: name                 # name | cpu | memory | health (default name)
+ *   sort_direction: asc        # asc | desc; defaults to asc for name and
+ *                              #   desc for the others; the in-card sort
+ *                              #   buttons override it for the session
  *   columns: 2                 # max columns (1-6, default 2); wraps down on
  *                              #   narrow widths so it stays responsive
  *   cpu_warning: 80            # CPU % (of the CPUs available to the
@@ -42,9 +45,17 @@ const DEFAULT_MEMORY_WARNING = 80;
 const MIN_COLUMN_WIDTH = "240px";
 const MODE_OPTIONS = ["all", "problems"];
 const SORT_OPTIONS = ["name", "cpu", "memory", "health"];
+const SORT_BUTTONS = ["name", "cpu", "memory"];
+const DIRECTION_OPTIONS = ["asc", "desc"];
+const DIRECTION_ICONS = { asc: "mdi:arrow-up", desc: "mdi:arrow-down" };
 const UNKNOWN_STATES = ["unavailable", "unknown"];
 
 const HEALTH_ORDER = { unhealthy: 0, stopped: 1, healthy: 2, none: 3 };
+
+/** The direction each sort key uses unless configured or toggled otherwise. */
+function defaultDirection(sort) {
+  return sort === "name" ? "asc" : "desc";
+}
 
 const TRANSLATIONS = {
   en: {
@@ -52,6 +63,8 @@ const TRANSLATIONS = {
     "card.filter": "Filter",
     "card.all": "All",
     "card.problems": "Problems",
+    "card.sort": "Sort by",
+    "card.name": "Name",
     "card.cpu": "CPU",
     "card.memory": "Memory",
     "card.health_healthy": "Healthy",
@@ -70,6 +83,9 @@ const TRANSLATIONS = {
     "editor.sort_cpu": "CPU usage",
     "editor.sort_memory": "Memory usage",
     "editor.sort_health": "Health",
+    "editor.sort_direction": "Sort direction",
+    "editor.direction_asc": "Ascending",
+    "editor.direction_desc": "Descending",
     "editor.columns": "Maximum columns",
     "editor.cpu_warning": "CPU warning threshold",
     "editor.memory_warning": "Memory warning threshold",
@@ -80,6 +96,8 @@ const TRANSLATIONS = {
     "card.filter": "Filtro",
     "card.all": "Todos",
     "card.problems": "Problemas",
+    "card.sort": "Ordenar por",
+    "card.name": "Nome",
     "card.cpu": "CPU",
     "card.memory": "Memória",
     "card.health_healthy": "Saudável",
@@ -98,6 +116,9 @@ const TRANSLATIONS = {
     "editor.sort_cpu": "Uso de CPU",
     "editor.sort_memory": "Uso de memória",
     "editor.sort_health": "Saúde",
+    "editor.sort_direction": "Direção da ordenação",
+    "editor.direction_asc": "Crescente",
+    "editor.direction_desc": "Decrescente",
     "editor.columns": "Máximo de colunas",
     "editor.cpu_warning": "Limite de aviso de CPU",
     "editor.memory_warning": "Limite de aviso de memória",
@@ -110,6 +131,7 @@ const EDITOR_LABEL_KEYS = {
   devices: "editor.devices",
   mode: "editor.mode",
   sort: "editor.sort",
+  sort_direction: "editor.sort_direction",
   columns: "editor.columns",
   cpu_warning: "editor.cpu_warning",
   memory_warning: "editor.memory_warning",
@@ -186,6 +208,22 @@ function formatMemoryDetail(megabytes, limitMegabytes) {
   return `${formatMemory(megabytes)} / ${formatMemory(limitMegabytes)}`;
 }
 
+/** Compare two numbers ascending, keeping missing values last in either direction. */
+function compareNumbers(a, b, sign) {
+  if (a === null && b === null) return 0;
+  if (a === null) return sign;
+  if (b === null) return -sign;
+  return a - b;
+}
+
+/** Ascending comparators per sort key; the direction sign is applied by the caller. */
+const SORT_COMPARATORS = {
+  name: (a, b, byName) => byName(a, b),
+  cpu: (a, b, _byName, sign) => compareNumbers(a.cpuPercent, b.cpuPercent, sign),
+  memory: (a, b, _byName, sign) => compareNumbers(a.memoryPercent, b.memoryPercent, sign),
+  health: (a, b) => HEALTH_ORDER[a.health] - HEALTH_ORDER[b.health],
+};
+
 class DockerMonitorCard extends HTMLElement {
   constructor() {
     super();
@@ -193,6 +231,8 @@ class DockerMonitorCard extends HTMLElement {
     this._config = {};
     this._hass = null;
     this._runtimeMode = null;
+    this._runtimeSort = null;
+    this._runtimeDirection = null;
     this._signature = null;
   }
 
@@ -221,6 +261,12 @@ class DockerMonitorCard extends HTMLElement {
     if (!SORT_OPTIONS.includes(sort)) {
       throw new Error(`docker-monitor-card: "sort" must be one of ${SORT_OPTIONS.join(", ")}`);
     }
+    const direction = config.sort_direction ?? defaultDirection(sort);
+    if (!DIRECTION_OPTIONS.includes(direction)) {
+      throw new Error(
+        `docker-monitor-card: "sort_direction" must be one of ${DIRECTION_OPTIONS.join(", ")}`
+      );
+    }
     const columns = Number.parseInt(config.columns, 10);
     const devices =
       Array.isArray(config.devices) && config.devices.length ? config.devices.slice() : null;
@@ -228,6 +274,7 @@ class DockerMonitorCard extends HTMLElement {
       title: config.title ?? null,
       mode,
       sort,
+      direction,
       columns: Number.isFinite(columns) ? Math.min(MAX_COLUMNS, Math.max(1, columns)) : DEFAULT_COLUMNS,
       cpuWarning: percentage(config.cpu_warning, DEFAULT_CPU_WARNING, "cpu_warning"),
       memoryWarning: percentage(config.memory_warning, DEFAULT_MEMORY_WARNING, "memory_warning"),
@@ -235,6 +282,8 @@ class DockerMonitorCard extends HTMLElement {
       devices,
     };
     this._runtimeMode = null;
+    this._runtimeSort = null;
+    this._runtimeDirection = null;
     this._signature = null;
     if (this._hass) this._render();
   }
@@ -254,6 +303,30 @@ class DockerMonitorCard extends HTMLElement {
 
   _effectiveMode() {
     return this._runtimeMode ?? this._config.mode;
+  }
+
+  _effectiveSort() {
+    return this._runtimeSort ?? this._config.sort;
+  }
+
+  _effectiveDirection() {
+    if (this._runtimeDirection) return this._runtimeDirection;
+    if (this._runtimeSort && this._runtimeSort !== this._config.sort) {
+      return defaultDirection(this._runtimeSort);
+    }
+    return this._config.direction;
+  }
+
+  /** Select a sort key from the in-card buttons; selecting it again flips the direction. */
+  _toggleSort(sort) {
+    if (sort === this._effectiveSort()) {
+      this._runtimeDirection = this._effectiveDirection() === "asc" ? "desc" : "asc";
+    } else {
+      this._runtimeSort = sort;
+      this._runtimeDirection = defaultDirection(sort);
+    }
+    this._signature = null;
+    this._render();
   }
 
   /**
@@ -326,18 +399,12 @@ class DockerMonitorCard extends HTMLElement {
 
     const filtered = this._config.showUnavailable ? items : items.filter((i) => i.available);
     const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+    const byName = (a, b) => collator.compare(a.name, b.name);
+    const sign = this._effectiveDirection() === "asc" ? 1 : -1;
+    const compare = SORT_COMPARATORS[this._effectiveSort()] ?? byName;
     filtered.sort((a, b) => {
       if (a.available !== b.available) return a.available ? -1 : 1;
-      switch (this._config.sort) {
-        case "cpu":
-          return (b.cpuPercent ?? -1) - (a.cpuPercent ?? -1) || collator.compare(a.name, b.name);
-        case "memory":
-          return (b.memoryPercent ?? -1) - (a.memoryPercent ?? -1) || collator.compare(a.name, b.name);
-        case "health":
-          return HEALTH_ORDER[a.health] - HEALTH_ORDER[b.health] || collator.compare(a.name, b.name);
-        default:
-          return collator.compare(a.name, b.name);
-      }
+      return sign * compare(a, b, byName, sign) || byName(a, b);
     });
     return filtered;
   }
@@ -359,6 +426,8 @@ class DockerMonitorCard extends HTMLElement {
     const t = (key) => localize(hass, key);
     const lang = resolveLang(hass);
     const mode = this._effectiveMode();
+    const sort = this._effectiveSort();
+    const direction = this._effectiveDirection();
     const title = this._config.title ?? t("card.default_title");
     const items = this._collect();
     const shown = mode === "problems" ? items.filter((i) => i.problem) : items;
@@ -367,7 +436,8 @@ class DockerMonitorCard extends HTMLElement {
       lang,
       mode,
       title,
-      this._config.sort,
+      sort,
+      direction,
       this._config.columns,
       shown.map((i) => [i.deviceId, i.name, i.image, i.health, i.cpu, i.cpuPercent, i.memory, i.memoryPercent, i.cpuHigh, i.memoryHigh]),
     ]);
@@ -411,6 +481,12 @@ class DockerMonitorCard extends HTMLElement {
       })
       .join("");
 
+    const sortButtons = SORT_BUTTONS.map((key) => {
+      const active = key === sort;
+      const icon = active ? `<ha-icon icon="${DIRECTION_ICONS[direction]}"></ha-icon>` : "";
+      return `<button data-sort="${key}" class="${active ? "active" : ""}" aria-pressed="${active}">${esc(t(`card.${key}`))}${icon}</button>`;
+    }).join("");
+
     const empty =
       mode === "problems"
         ? `<div class="empty"><ha-icon icon="mdi:check-circle-outline"></ha-icon><span>${esc(t("card.empty_all_ok"))}</span></div>`
@@ -421,9 +497,12 @@ class DockerMonitorCard extends HTMLElement {
       <ha-card>
         <div class="header">
           <div class="title">${esc(title)}</div>
-          <div class="toggle" role="group" aria-label="${esc(t("card.filter"))}">
-            <button data-mode="all" class="${mode === "all" ? "active" : ""}">${esc(t("card.all"))}</button>
-            <button data-mode="problems" class="${mode === "problems" ? "active" : ""}">${esc(t("card.problems"))}</button>
+          <div class="controls">
+            <div class="toggle" role="group" aria-label="${esc(t("card.filter"))}">
+              <button data-mode="all" class="${mode === "all" ? "active" : ""}">${esc(t("card.all"))}</button>
+              <button data-mode="problems" class="${mode === "problems" ? "active" : ""}">${esc(t("card.problems"))}</button>
+            </div>
+            <div class="toggle" role="group" aria-label="${esc(t("card.sort"))}">${sortButtons}</div>
           </div>
         </div>
         <div class="grid" style="--cols:${this._config.columns}">${shown.length ? rows : empty}</div>
@@ -435,6 +514,10 @@ class DockerMonitorCard extends HTMLElement {
         this._signature = null;
         this._render();
       });
+    });
+
+    this.shadowRoot.querySelectorAll("[data-sort]").forEach((button) => {
+      button.addEventListener("click", () => this._toggleSort(button.dataset.sort));
     });
 
     this.shadowRoot.querySelectorAll(".item").forEach((item) => {
@@ -469,6 +552,12 @@ class DockerMonitorCard extends HTMLElement {
         color: var(--primary-text-color);
         line-height: 1.4;
       }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       .toggle {
         display: inline-flex;
         border: 1px solid var(--divider-color, rgba(0,0,0,.12));
@@ -484,6 +573,13 @@ class DockerMonitorCard extends HTMLElement {
         font-size: 0.8125rem;
         padding: 4px 14px;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .toggle button ha-icon {
+        --mdc-icon-size: 14px;
+        margin-right: -4px;
       }
       .toggle button.active {
         background: var(--primary-color);
@@ -658,6 +754,18 @@ class DockerMonitorCardEditor extends HTMLElement {
         },
       },
       {
+        name: "sort_direction",
+        selector: {
+          select: {
+            mode: "dropdown",
+            options: [
+              { value: "asc", label: t("editor.direction_asc") },
+              { value: "desc", label: t("editor.direction_desc") },
+            ],
+          },
+        },
+      },
+      {
         name: "columns",
         selector: { number: { min: 1, max: MAX_COLUMNS, mode: "box" } },
       },
@@ -703,6 +811,7 @@ class DockerMonitorCardEditor extends HTMLElement {
       devices: this._config.devices ?? [],
       mode: this._config.mode ?? DEFAULT_MODE,
       sort: this._config.sort ?? DEFAULT_SORT,
+      sort_direction: this._config.sort_direction,
       columns: this._config.columns ?? DEFAULT_COLUMNS,
       cpu_warning: this._config.cpu_warning ?? DEFAULT_CPU_WARNING,
       memory_warning: this._config.memory_warning ?? DEFAULT_MEMORY_WARNING,

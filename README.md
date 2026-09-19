@@ -64,6 +64,7 @@ type: custom:docker-monitor-card
 | `devices` | all | Device ids of the containers to show |
 | `mode` | `all` | `all` or `problems` (unhealthy, stopped or above a warning threshold) |
 | `sort` | `name` | `name`, `cpu`, `memory` or `health` |
+| `sort_direction` | `asc` for `name`, `desc` otherwise | `asc` or `desc` |
 | `columns` | `2` | Maximum columns (1–6); wraps down on narrow widths |
 | `cpu_warning` | `80` | CPU % of the CPUs available to the container at or above which it is flagged |
 | `memory_warning` | `80` | Memory % of the container limit at or above which it is flagged |
@@ -72,8 +73,9 @@ type: custom:docker-monitor-card
 Both bars share one scale, the share of what the container can use: CPU
 usage over the CPUs available to it and memory usage over its limit. The
 absolute figures (CPUs in use, MB used and the limit) are shown next to each
-bar. The card also provides a visual editor in the dashboard UI, an in-card
-"All / Problems" toggle, and is translated into English and Portuguese
+bar. The card also provides a visual editor in the dashboard UI, in-card
+"All / Problems" and "Name / CPU / Memory" buttons (selecting the active sort
+again flips its direction), and is translated into English and Portuguese
 (Brazil). Clicking a container opens its device page.
 
 ## How it works
