@@ -91,7 +91,10 @@ to fail fast on a bad socket path. `async_list_container_names` reads the
 public `container["Names"]` mapping and filters anonymous (hex-hash) names via
 `_is_anonymous`. `async_get_container_data` gathers `stats(stream=False)` +
 `show()` and derives CPU% (`_calculate_cpu_percent`, the official `docker stats`
-formula) and memory in MB (`_calculate_memory`, cache-subtracted). There is no
+formula, plus `_read_online_cpus` for the CPUs the container can use) and
+memory in MB (`_calculate_memory`, page cache subtracted the way `docker stats`
+does: `total_inactive_file` on cgroup v1, `inactive_file` on cgroup v2, never
+the legacy `cache` key). There is no
 authentication error type — Docker over a Unix socket is unauthenticated.
 
 ### Diagnostics
@@ -122,6 +125,10 @@ once the last entry is gone. The manifest declares `http` and `lovelace` as
 dependencies so both are set up first. The card discovers containers by
 `hass.entities` with `platform == "docker_monitor"` and matches entities by
 `translation_key` (`cpu`, `memory`, `health`), so it is language independent.
+Its two bars share one scale, the share of what the container can use: the
+CPU sensor value divided by its `online_cpus` attribute and the memory value
+divided by its `memory_limit_mb` attribute; the warning thresholds apply to
+those shares.
 
 ### Device removal
 
