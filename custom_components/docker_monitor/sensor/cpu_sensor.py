@@ -29,3 +29,14 @@ class DockerMonitorCpuSensor(DockerMonitorEntity, SensorEntity):
         if container is None:
             return None
         return container["cpu_percent"]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, int] | None:
+        """Expose the number of CPUs the container can use alongside usage."""
+        container = self._container
+        if container is None:
+            return None
+        online_cpus = container["online_cpus"]
+        if online_cpus is None:
+            return None
+        return {"online_cpus": online_cpus}

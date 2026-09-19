@@ -4,6 +4,7 @@ from custom_components.docker_monitor.api import (
     _calculate_cpu_percent,
     _calculate_memory,
     _is_anonymous,
+    _read_online_cpus,
 )
 from custom_components.docker_monitor.exceptions import (
     DockerMonitorApiClientCommunicationError,
@@ -87,7 +88,7 @@ def test_calculate_memory_basic():
         "memory_stats": {
             "usage": 104857600,  # 100 MB
             "limit": 1073741824,  # 1 GB
-            "stats": {"cache": 0},
+            "stats": {},
         },
     }
     used, limit = _calculate_memory(stats)
@@ -95,19 +96,68 @@ def test_calculate_memory_basic():
     assert limit == 1024.0
 
 
-def test_calculate_memory_subtracts_cache():
+def test_calculate_memory_subtracts_cgroup_v2_page_cache():
     stats = {
         "memory_stats": {
             "usage": 104857600,
             "limit": 1073741824,
-            "stats": {"cache": 10485760},  # 10 MB
+            "stats": {"inactive_file": 10485760},  # 10 MB
         },
     }
     used, _ = _calculate_memory(stats)
     assert used == 90.0
 
 
+def test_calculate_memory_subtracts_cgroup_v1_page_cache():
+    stats = {
+        "memory_stats": {
+            "usage": 104857600,
+            "limit": 1073741824,
+            "stats": {"total_inactive_file": 20971520, "inactive_file": 10485760},
+        },
+    }
+    used, _ = _calculate_memory(stats)
+    assert used == 80.0
+
+
+def test_calculate_memory_ignores_page_cache_above_usage():
+    stats = {
+        "memory_stats": {
+            "usage": 104857600,
+            "limit": 1073741824,
+            "stats": {"inactive_file": 209715200},
+        },
+    }
+    used, _ = _calculate_memory(stats)
+    assert used == 100.0
+
+
+def test_calculate_memory_ignores_legacy_cache_key():
+    stats = {
+        "memory_stats": {
+            "usage": 104857600,
+            "limit": 1073741824,
+            "stats": {"cache": 10485760},
+        },
+    }
+    used, _ = _calculate_memory(stats)
+    assert used == 100.0
+
+
 def test_calculate_memory_returns_none_on_missing():
     used, limit = _calculate_memory({})
     assert used is None
     assert limit is None
+
+
+def test_read_online_cpus():
+    assert _read_online_cpus({"cpu_stats": {"online_cpus": 4}}) == 4
+
+
+def test_read_online_cpus_returns_none_on_missing():
+    assert _read_online_cpus({}) is None
+    assert _read_online_cpus({"cpu_stats": {}}) is None
+
+
+def test_read_online_cpus_returns_none_on_zero():
+    assert _read_online_cpus({"cpu_stats": {"online_cpus": 0}}) is None

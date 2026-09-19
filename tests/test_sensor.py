@@ -36,6 +36,24 @@ def test_cpu_unique_id():
     assert sensor.unique_id == "eid_prometheus_cpu"
 
 
+def test_cpu_extra_attributes_expose_online_cpus():
+    sensor = DockerMonitorCpuSensor(_coord(), "prometheus")
+    assert sensor.extra_state_attributes == {"online_cpus": 4}
+
+
+def test_cpu_extra_attributes_none_when_missing():
+    payload = {"containers": {}}
+    sensor = DockerMonitorCpuSensor(_coord(payload), "prometheus")
+    assert sensor.extra_state_attributes is None
+
+
+def test_cpu_extra_attributes_none_without_online_cpus():
+    payload = copy.deepcopy(SAMPLE_PAYLOAD)
+    payload["containers"]["prometheus"]["online_cpus"] = None
+    sensor = DockerMonitorCpuSensor(_coord(payload), "prometheus")
+    assert sensor.extra_state_attributes is None
+
+
 def test_memory_native_value():
     sensor = DockerMonitorMemorySensor(_coord(), "prometheus")
     assert sensor.native_value == 63.7
