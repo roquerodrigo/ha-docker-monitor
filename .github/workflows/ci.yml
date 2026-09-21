@@ -19,7 +19,7 @@ jobs:
   card-syntax:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: node --check custom_components/docker_monitor/www/docker-monitor-card.js
 
   tests:
