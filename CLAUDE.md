@@ -15,7 +15,7 @@ This file deliberately avoids restating those rules — it only adds:
 
 ## Verification workflow
 
-**After every code change, always run lint then tests, in that order, before declaring the task done.** Run `scripts/lint` (a thin wrapper chaining the five commands) or the tools directly:
+**After every code change, always run lint then tests, in that order, before declaring the task done.** Run `scripts/lint` (a thin wrapper chaining the same five tools, but running `ruff format` and `ruff check --fix` in their auto-fixing form) or the check-only commands directly:
 
 ```bash
 uv run ruff format --check .
@@ -42,9 +42,7 @@ Verify the pairing on PyPI before committing: the `requires_dist` of `pytest-hom
 
 ## Architecture
 
-The integration follows the HA `DataUpdateCoordinator` pattern:
-
-```
+The integration follows the HA `DataUpdateCoordinator` pattern; entity platforms (`sensor/`, `binary_sensor/`) hold one class per file.
 config_flow.py          → validates credentials and creates the ConfigEntry
 __init__.py             → instantiates ApiClient + DataUpdateCoordinator, performs the first refresh
 coordinator.py          → polls every scan_interval seconds; returns the typed payload
@@ -88,8 +86,10 @@ the integration talks to a local Docker socket, so there is no reauth flow:
 
 `aiodocker.Docker(...)` is lazy, so `async_connect` issues a `version()` call
 to fail fast on a bad socket path. `async_list_container_names` reads the
-public `container["Names"]` mapping and filters anonymous (hex-hash) names via
-`_is_anonymous`. `async_get_container_data` gathers `stats(stream=False)` +
+public `container["Names"]` mapping and filters auto-generated names via
+`_is_anonymous`: only fully hex, id-like names and Compose one-off
+`<project>-<service>-run-<hash>` names — a user-named container that merely
+ends in a hex-looking segment must stay visible. `async_get_container_data` gathers `stats(stream=False)` +
 `show()` and derives CPU% (`_calculate_cpu_percent`, the official `docker stats`
 formula, plus `_read_online_cpus` for the CPUs the container can use) and
 memory in MB (`_calculate_memory`, page cache subtracted the way `docker stats`
