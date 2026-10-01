@@ -107,7 +107,7 @@ async def test_setup_closes_client_when_first_refresh_fails(
         DockerMonitorApiClientCommunicationError,
     )
 
-    mock_api_client.async_list_container_names.side_effect = (
+    mock_api_client.async_list_container_states.side_effect = (
         DockerMonitorApiClientCommunicationError("socket dropped")
     )
     entry = MockConfigEntry(

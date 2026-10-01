@@ -80,7 +80,7 @@ rules:
     comment: The integration surfaces no recoverable conditions that warrant a repair issue.
   stale-devices:
     status: done
-    comment: async_remove_config_entry_device lets the user delete a device once Docker stops reporting its container.
+    comment: The coordinator removes the device of a container deleted from Docker after a grace period, and async_remove_config_entry_device lets the user delete a device once Docker stops reporting its container.
 
   # Platinum
   async-dependency: done

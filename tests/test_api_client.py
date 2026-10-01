@@ -49,7 +49,7 @@ async def test_close_sets_none(client, mock_docker):
 
 
 async def test_list_container_names_returns_names(client, mock_docker):
-    container = _fake_container({"Names": ["/prometheus"]})
+    container = _fake_container({"Names": ["/prometheus"], "State": "running"})
     mock_docker.containers.list = AsyncMock(return_value=[container])
 
     names = await client.async_list_container_names()
@@ -57,8 +57,10 @@ async def test_list_container_names_returns_names(client, mock_docker):
 
 
 async def test_list_container_names_skips_anonymous(client, mock_docker):
-    named = _fake_container({"Names": ["/prometheus"]})
-    anon = _fake_container({"Names": ["/myproject-backup-run-a1b2c3d4e5f6"]})
+    named = _fake_container({"Names": ["/prometheus"], "State": "running"})
+    anon = _fake_container(
+        {"Names": ["/myproject-backup-run-a1b2c3d4e5f6"], "State": "running"}
+    )
     mock_docker.containers.list = AsyncMock(return_value=[named, anon])
 
     names = await client.async_list_container_names()
@@ -79,6 +81,35 @@ async def test_list_container_names_skips_missing_names_key(client, mock_docker)
 
     names = await client.async_list_container_names()
     assert names == []
+
+
+async def test_list_container_names_skips_stopped(client, mock_docker):
+    running = _fake_container({"Names": ["/prometheus"], "State": "running"})
+    stopped = _fake_container({"Names": ["/grafana"], "State": "exited"})
+    mock_docker.containers.list = AsyncMock(return_value=[running, stopped])
+
+    names = await client.async_list_container_names()
+    assert names == ["prometheus"]
+
+
+async def test_list_container_states_includes_stopped(client, mock_docker):
+    running = _fake_container({"Names": ["/prometheus"], "State": "running"})
+    stopped = _fake_container({"Names": ["/grafana"], "State": "exited"})
+    anon = _fake_container({"Names": ["/a1b2c3d4e5f6a1b2"], "State": "exited"})
+    mock_docker.containers.list = AsyncMock(return_value=[running, stopped, anon])
+
+    states = await client.async_list_container_states()
+
+    assert states == {"prometheus": "running", "grafana": "exited"}
+    mock_docker.containers.list.assert_awaited_once_with(all=True)
+
+
+async def test_list_container_states_without_state_key(client, mock_docker):
+    container = _fake_container({"Names": ["/prometheus"]})
+    mock_docker.containers.list = AsyncMock(return_value=[container])
+
+    states = await client.async_list_container_states()
+    assert states == {"prometheus": ""}
 
 
 async def test_list_containers_docker_error_raises(client, mock_docker):

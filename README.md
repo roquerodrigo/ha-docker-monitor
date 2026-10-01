@@ -84,7 +84,8 @@ again flips its direction), and is translated into English and Portuguese
 - Polls all running containers at the configured interval.
 - Containers are identified by name (stable across `docker compose up --force-recreate`).
 - Auto-named containers (Compose one-off `run` containers and id-like hex names) are excluded.
-- Stopped or removed containers become unavailable.
+- Stopped containers become unavailable and keep their device.
+- Containers deleted from Docker have their device removed automatically after five minutes, so a recreated container keeps its device and entity settings.
 
 ## Support
 

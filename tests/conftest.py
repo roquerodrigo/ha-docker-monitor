@@ -68,8 +68,8 @@ def mock_api_client(sample_payload) -> Generator:
         instance = mock_class.return_value
         instance.async_connect = AsyncMock()
         instance.async_close = AsyncMock()
-        instance.async_list_container_names = AsyncMock(
-            return_value=list(sample_payload["containers"].keys()),
+        instance.async_list_container_states = AsyncMock(
+            return_value=dict.fromkeys(sample_payload["containers"], "running"),
         )
         instance.async_get_container_data = AsyncMock(
             side_effect=lambda name: copy.deepcopy(
