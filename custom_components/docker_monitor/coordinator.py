@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, LOGGER, RUNNING_STATE
 from .exceptions import DockerMonitorApiClientError
+from .stale_device_remover import DockerMonitorStaleDeviceRemover
 
 if TYPE_CHECKING:
     from datetime import timedelta
@@ -44,21 +45,29 @@ class DockerMonitorDataUpdateCoordinator(
             update_interval=scan_interval,
             always_update=False,
         )
+        self._stale_device_remover = DockerMonitorStaleDeviceRemover(hass, entry)
 
     async def _async_update_data(self) -> DockerMonitorPayload:
         """Fetch stats for all running named containers."""
         client = self.config_entry.runtime_data.client
         try:
-            names = await client.async_list_container_names()
+            container_states = await client.async_list_container_states()
+            names = [
+                name
+                for name, state in container_states.items()
+                if state == RUNNING_STATE
+            ]
             results: list[DockerMonitorContainerData] = list(
                 await asyncio.gather(
-                    *(client.async_get_container_data(n) for n in names),
+                    *(client.async_get_container_data(name) for name in names),
                 ),
             )
         except DockerMonitorApiClientError as exception:
             raise UpdateFailed(exception) from exception
 
+        self._stale_device_remover.async_remove_missing(container_states)
+
         containers: dict[str, DockerMonitorContainerData] = {
-            r["name"]: r for r in results
+            result["name"]: result for result in results
         }
         return {"containers": containers}

@@ -7,13 +7,15 @@ from typing import TYPE_CHECKING
 
 import aiodocker
 
-from .const import LOGGER
+from .const import LOGGER, RUNNING_STATE
 from .exceptions import (
     DockerMonitorApiClientCommunicationError,
     DockerMonitorApiClientError,
 )
 
 if TYPE_CHECKING:
+    from aiodocker.containers import DockerContainer
+
     from .data import DockerMonitorContainerData
 
 type JsonPrimitive = str | int | float | bool | None
@@ -59,27 +61,27 @@ class DockerMonitorApiClient:
 
     async def async_list_container_names(self) -> list[str]:
         """Return the names of all running named containers."""
+        states = await self.async_list_container_states()
+        return [name for name, state in states.items() if state == RUNNING_STATE]
+
+    async def async_list_container_states(self) -> dict[str, str]:
+        """Return the state of every named container, stopped ones included."""
         try:
-            containers = await self._client.containers.list()
+            containers = await self._client.containers.list(all=True)
         except (aiodocker.DockerError, OSError) as exception:
             msg = f"Failed to list containers: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception
 
-        names: list[str] = []
+        states: dict[str, str] = {}
         for container in containers:
-            # ``DockerContainer`` exposes the raw daemon payload via
-            # ``__getitem__``; ``Names`` is the list of "/name" aliases.
+            name = _read_name(container)
+            if name is None or _is_anonymous(name):
+                continue
             try:
-                raw_names: list[str] = container["Names"]
+                states[name] = container["State"]
             except KeyError:
-                continue
-            if not raw_names:
-                continue
-            name = raw_names[0].lstrip("/")
-            if _is_anonymous(name):
-                continue
-            names.append(name)
-        return names
+                states[name] = ""
+        return states
 
     async def async_get_container_data(
         self,
@@ -130,6 +132,19 @@ class DockerMonitorApiClient:
             msg = "Docker client is not connected"
             raise DockerMonitorApiClientError(msg)
         return self._docker
+
+
+def _read_name(container: DockerContainer) -> str | None:
+    """Return the primary name of a listed container, without its leading slash."""
+    # ``DockerContainer`` exposes the raw daemon payload via ``__getitem__``;
+    # ``Names`` is the list of "/name" aliases.
+    try:
+        raw_names: list[str] = container["Names"]
+    except KeyError:
+        return None
+    if not raw_names:
+        return None
+    return raw_names[0].lstrip("/")
 
 
 def _is_anonymous(name: str) -> bool:

@@ -85,7 +85,7 @@ the integration talks to a local Docker socket, so there is no reauth flow:
 - `DockerMonitorApiClientCommunicationError` (socket unreachable, `DockerError`, `OSError`)
 
 `aiodocker.Docker(...)` is lazy, so `async_connect` issues a `version()` call
-to fail fast on a bad socket path. `async_list_container_names` reads the
+to fail fast on a bad socket path. `async_list_container_states` reads the
 public `container["Names"]` mapping and filters auto-generated names via
 `_is_anonymous`: only fully hex, id-like names and Compose one-off
 `<project>-<service>-run-<hash>` names — a user-named container that merely
@@ -138,3 +138,12 @@ coordinator payload (stopped, renamed or removed). A device backed by a
 container Docker still reports is refused, since the next poll would
 immediately re-create it; a container that comes back is simply registered
 again. `quality_scale.yaml` marks `stale-devices: done` for this.
+
+Devices are also removed automatically. The coordinator lists every container
+(`async_list_container_states`, `all=True`) and only fetches stats for the
+running ones; `DockerMonitorStaleDeviceRemover` (`stale_device_remover.py`)
+then drops the device of any container Docker no longer has at all. A stopped
+container still exists and keeps its device. Removal waits
+`STALE_DEVICE_GRACE_PERIOD` (5 min, tracked in memory): `docker compose up`
+deletes a container before recreating it, and a poll landing in that window
+must not discard the device and its entity customisations.

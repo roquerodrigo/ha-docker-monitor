@@ -65,8 +65,22 @@ async def test_update_data_raises_update_failed_on_comm_error(
     setup_integration,
 ):
     coordinator = setup_integration.runtime_data.coordinator
-    coordinator.config_entry.runtime_data.client.async_list_container_names = AsyncMock(
-        side_effect=DockerMonitorApiClientCommunicationError("timeout"),
+    coordinator.config_entry.runtime_data.client.async_list_container_states = (
+        AsyncMock(
+            side_effect=DockerMonitorApiClientCommunicationError("timeout"),
+        )
     )
     with pytest.raises(UpdateFailed):
         await coordinator._async_update_data()
+
+
+async def test_update_data_only_fetches_running_containers(hass, setup_integration):
+    coordinator = setup_integration.runtime_data.coordinator
+    client = setup_integration.runtime_data.client
+    client.async_list_container_states = AsyncMock(
+        return_value={"prometheus": "running", "nginx": "exited"},
+    )
+
+    payload = await coordinator._async_update_data()
+
+    assert list(payload["containers"]) == ["prometheus"]
