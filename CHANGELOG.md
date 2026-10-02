@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-10-02)
+
+
+### Dependencies
+
+* **deps:** bump urllib3 from 2.7.0 to 2.8.0 ([e2494f1](https://github.com/roquerodrigo/ha-docker-monitor/commit/e2494f19eb74242f6aae0aee5d9871378581e5ed))
+
 ## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
 
 
