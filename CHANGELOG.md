@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
+
+
+### Bug Fixes
+
+* **coordinator:** remove stale devices with async_remove_device ([2e98393](https://github.com/roquerodrigo/ha-docker-monitor/commit/2e98393f7fbee92937dd2754b8861e4592705ca0))
+
 ## [1.3.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.2.0...v1.3.0) (2026-10-01)
 
 
