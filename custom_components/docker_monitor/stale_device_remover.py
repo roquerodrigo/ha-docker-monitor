@@ -52,10 +52,7 @@ class DockerMonitorStaleDeviceRemover:
             if now - missing_since < STALE_DEVICE_GRACE_PERIOD:
                 continue
             LOGGER.info("Removing device of deleted container %s", container_name)
-            device_registry.async_update_device(
-                device.id,
-                remove_config_entry_id=self._entry.entry_id,
-            )
+            device_registry.async_remove_device(device.id)
             tracked_device_ids.discard(device.id)
 
         self._missing_since = {
