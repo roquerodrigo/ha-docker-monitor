@@ -43,11 +43,6 @@ Verify the pairing on PyPI before committing: the `requires_dist` of `pytest-hom
 ## Architecture
 
 The integration follows the HA `DataUpdateCoordinator` pattern; entity platforms (`sensor/`, `binary_sensor/`) hold one class per file.
-config_flow.py          → validates credentials and creates the ConfigEntry
-__init__.py             → instantiates ApiClient + DataUpdateCoordinator, performs the first refresh
-coordinator.py          → polls every scan_interval seconds; returns the typed payload
-sensor/, binary_sensor/ → read coordinator.data and create the entities (one class per file)
-```
 
 ### Entry typing
 
