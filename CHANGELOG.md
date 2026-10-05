@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-10-05)
+
+
+### Dependencies
+
+* **deps:** bump urllib3 from 2.7.0 to 2.8.0 ([e2494f1](https://github.com/roquerodrigo/ha-docker-monitor/commit/e2494f19eb74242f6aae0aee5d9871378581e5ed))
+* **deps:** bump virtualenv from 21.4.2 to 21.7.13 ([3f97fb1](https://github.com/roquerodrigo/ha-docker-monitor/commit/3f97fb1ad758a1af4ea634b997740d40e23ec91c))
+
+
+### Development Dependencies
+
+* **deps-dev:** bump the python-deps group with 2 updates ([c0f8ff5](https://github.com/roquerodrigo/ha-docker-monitor/commit/c0f8ff539f44c14fb16fedc575a8e42673442b1b))
+
+
+### Documentation
+
+* refresh CLAUDE.md ([da43506](https://github.com/roquerodrigo/ha-docker-monitor/commit/da43506d46dc32e7fdbf922b9fdc645a66bb1e73))
+
 ## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
 
 
