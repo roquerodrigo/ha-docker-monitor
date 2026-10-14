@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-10-14)
+
+
+### Miscellaneous Chores
+
+* **release:** keep only user-facing changes in the changelog ([d967f50](https://github.com/roquerodrigo/ha-docker-monitor/commit/d967f506f00e7f4520f4f12e6eb8c03cba065428))
+
 ## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
 
 
