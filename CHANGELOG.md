@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-10-31)
+
+Internal maintenance only, with no changes for those who use the project.
+
 ## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
 
 
