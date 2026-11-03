@@ -1038,9 +1038,6 @@ dev = [
     { name = "aiodocker" },
     { name = "homeassistant" },
     { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
     { name = "pytest-homeassistant-custom-component" },
 ]
 lint = [
@@ -1055,9 +1052,6 @@ dev = [
     { name = "aiodocker", specifier = ">=0.23.0" },
     { name = "homeassistant", specifier = "==2026.8.0" },
     { name = "pre-commit", specifier = "==4.7.0" },
-    { name = "pytest", specifier = "==9.0.3" },
-    { name = "pytest-asyncio", specifier = "==1.4.0" },
-    { name = "pytest-cov", specifier = "==7.1.0" },
     { name = "pytest-homeassistant-custom-component", specifier = "==0.13.354" },
 ]
 lint = [
