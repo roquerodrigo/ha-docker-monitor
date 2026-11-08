@@ -86,14 +86,25 @@ class DockerMonitorApiClient:
     async def async_get_container_data(
         self,
         name: str,
+        *,
+        include_stats: bool = True,
     ) -> DockerMonitorContainerData:
-        """Fetch stats and health for a container by name."""
+        """
+        Fetch health and, unless skipped, resource stats for a container by name.
+
+        Docker holds a non-streamed stats request for about a second to take
+        the second sample its CPU figure needs, so skipping stats leaves CPU
+        and memory as ``None`` in exchange for an almost instant answer.
+        """
         try:
             container = await self._client.containers.get(name)
-            stats_list, inspect = await asyncio.gather(
-                container.stats(stream=False),
-                container.show(),
-            )
+            if include_stats:
+                stats_list, inspect = await asyncio.gather(
+                    container.stats(stream=False),
+                    container.show(),
+                )
+            else:
+                stats_list, inspect = [], await container.show()
         except (aiodocker.DockerError, OSError) as exception:
             msg = f"Failed to get data for container {name}: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception

@@ -178,6 +178,31 @@ async def test_get_container_data_no_health(client, mock_docker):
     assert data["health_status"] is None
 
 
+async def test_get_container_data_without_stats_skips_the_stats_request(
+    client, mock_docker
+):
+    container = MagicMock()
+    container.stats = AsyncMock()
+    container.show = AsyncMock(
+        return_value={
+            "Id": "346ee219ec9fabcdef123456",
+            "Config": {"Image": "prom/prometheus:v2.53.0"},
+            "State": {"Status": "running", "Health": {"Status": "healthy"}},
+        },
+    )
+    mock_docker.containers.get = AsyncMock(return_value=container)
+
+    data = await client.async_get_container_data("prometheus", include_stats=False)
+
+    container.stats.assert_not_called()
+    assert data["cpu_percent"] is None
+    assert data["online_cpus"] is None
+    assert data["memory_usage_mb"] is None
+    assert data["memory_limit_mb"] is None
+    assert data["status"] == "running"
+    assert data["health_status"] == "healthy"
+
+
 async def test_get_container_data_oserror_raises(client, mock_docker):
     mock_docker.containers.get = AsyncMock(side_effect=OSError("gone"))
 

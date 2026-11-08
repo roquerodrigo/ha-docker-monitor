@@ -26,7 +26,13 @@ if TYPE_CHECKING:
 class DockerMonitorDataUpdateCoordinator(
     DataUpdateCoordinator["DockerMonitorPayload"],
 ):
-    """Coordinator that polls Docker for container stats."""
+    """
+    Coordinator that polls Docker for container stats.
+
+    The first refresh skips the resource stats so the entry sets up without
+    waiting on Docker's one-second CPU sampling; every later refresh, starting
+    with the one setup schedules in the background, includes them.
+    """
 
     config_entry: DockerMonitorConfigEntry
 
@@ -46,10 +52,13 @@ class DockerMonitorDataUpdateCoordinator(
             always_update=False,
         )
         self._stale_device_remover = DockerMonitorStaleDeviceRemover(hass, entry)
+        self._includes_stats = False
 
     async def _async_update_data(self) -> DockerMonitorPayload:
         """Fetch stats for all running named containers."""
         client = self.config_entry.runtime_data.client
+        include_stats = self._includes_stats
+        self._includes_stats = True
         try:
             container_states = await client.async_list_container_states()
             names = [
@@ -59,7 +68,12 @@ class DockerMonitorDataUpdateCoordinator(
             ]
             results: list[DockerMonitorContainerData] = list(
                 await asyncio.gather(
-                    *(client.async_get_container_data(name) for name in names),
+                    *(
+                        client.async_get_container_data(
+                            name, include_stats=include_stats
+                        )
+                        for name in names
+                    ),
                 ),
             )
         except DockerMonitorApiClientError as exception:
