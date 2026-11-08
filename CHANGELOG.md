@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-11-08)
+
+### Improvements
+
+- Setting up the integration is faster. CPU and memory sensors now show values a couple of seconds after startup instead of during setup. ([#66](https://github.com/roquerodrigo/ha-docker-monitor/pull/66))
+
 ## [1.3.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.0...v1.3.1) (2026-10-02)
 
 
