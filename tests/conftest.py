@@ -72,7 +72,7 @@ def mock_api_client(sample_payload) -> Generator:
             return_value=dict.fromkeys(sample_payload["containers"], "running"),
         )
         instance.async_get_container_data = AsyncMock(
-            side_effect=lambda name: copy.deepcopy(
+            side_effect=lambda name, **_: copy.deepcopy(
                 sample_payload["containers"][name],
             ),
         )
@@ -100,5 +100,5 @@ async def setup_integration(hass, mock_api_client, enable_custom_integrations):
     )
     entry.add_to_hass(hass)
     await hass.config_entries.async_setup(entry.entry_id)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)
     return entry

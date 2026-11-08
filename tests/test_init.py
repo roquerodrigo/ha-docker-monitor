@@ -56,6 +56,18 @@ async def test_setup_entry_creates_binary_sensor_for_healthcheck(
     assert len(binary_sensors) == 1  # only prometheus has health
 
 
+async def test_setup_samples_stats_in_the_background(
+    hass, setup_integration, mock_api_client
+):
+    include_stats_flags = [
+        call.kwargs["include_stats"]
+        for call in mock_api_client.async_get_container_data.call_args_list
+    ]
+
+    assert include_stats_flags == [False, False, True, True]
+    assert hass.states.get("sensor.prometheus_cpu").state == "0.2"
+
+
 async def test_runtime_data_populated(hass, setup_integration):
     assert setup_integration.runtime_data.client is not None
     assert setup_integration.runtime_data.coordinator is not None

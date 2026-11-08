@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.helpers.update_coordinator import UpdateFailed
@@ -84,3 +84,28 @@ async def test_update_data_only_fetches_running_containers(hass, setup_integrati
     payload = await coordinator._async_update_data()
 
     assert list(payload["containers"]) == ["prometheus"]
+
+
+async def test_first_refresh_skips_stats_and_later_refreshes_include_them(hass):
+    entry = _entry(hass)
+    client = MagicMock()
+    client.async_list_container_states = AsyncMock(
+        return_value={"prometheus": "running"},
+    )
+    client.async_get_container_data = AsyncMock(
+        side_effect=lambda name, **_: {"name": name},
+    )
+    entry.runtime_data = MagicMock(client=client)
+    coordinator = DockerMonitorDataUpdateCoordinator(
+        hass=hass,
+        entry=entry,
+        scan_interval=timedelta(seconds=30),
+    )
+
+    await coordinator._async_update_data()
+    await coordinator._async_update_data()
+
+    assert [call.kwargs for call in client.async_get_container_data.call_args_list] == [
+        {"include_stats": False},
+        {"include_stats": True},
+    ]
