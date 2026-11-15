@@ -8,4 +8,4 @@ from typing import TypedDict
 class DockerMonitorConfigData(TypedDict):
     """Shape of the data persisted on the config entry."""
 
-    socket_path: str
+    docker_host: str

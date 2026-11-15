@@ -40,7 +40,7 @@ rules:
   parallel-updates: done
   reauthentication-flow:
     status: exempt
-    comment: The Docker Engine socket is unauthenticated; there are no credentials to reauthenticate.
+    comment: The Docker Engine API, over a socket or TCP, takes no credentials to reauthenticate.
   test-coverage: done
 
   # Gold
@@ -48,10 +48,10 @@ rules:
   diagnostics: done
   discovery:
     status: exempt
-    comment: Containers are discovered by polling the local Docker socket, not via a network discovery protocol.
+    comment: Containers are discovered by polling the configured Docker host, not via a network discovery protocol.
   discovery-update-info:
     status: exempt
-    comment: No network discovery; the socket path is user-provided and static.
+    comment: No network discovery; the Docker host is user-provided and static.
   docs-data-update: todo
   docs-examples: todo
   docs-known-limitations: todo
@@ -86,5 +86,5 @@ rules:
   async-dependency: done
   inject-websession:
     status: exempt
-    comment: aiodocker manages its own Unix-socket connector; there is no HTTP session to inject.
+    comment: aiodocker builds a connector for the Docker host (a Unix socket for local daemons), which Home Assistant's shared HTTP session cannot provide.
   strict-typing: done

@@ -5,9 +5,9 @@ from custom_components.docker_monitor.diagnostics import (
 )
 
 
-async def test_diagnostics_includes_socket_path(hass, setup_integration):
+async def test_diagnostics_includes_docker_host(hass, setup_integration):
     diag = await async_get_config_entry_diagnostics(hass, setup_integration)
-    assert diag["entry"]["data"]["socket_path"] == "/var/run/docker.sock"
+    assert diag["entry"]["data"]["docker_host"] == "unix:///var/run/docker.sock"
 
 
 async def test_diagnostics_includes_entry_metadata(hass, setup_integration):

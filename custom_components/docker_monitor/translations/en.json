@@ -3,25 +3,26 @@
         "step": {
             "user": {
                 "title": "Set up Docker Monitor",
-                "description": "Enter the path to the Docker socket.",
+                "description": "Enter the Docker socket path or the URL of a remote Docker Engine, e.g. `/var/run/docker.sock` or `tcp://192.168.1.10:2375`.",
                 "data": {
-                    "socket_path": "Socket path"
+                    "docker_host": "Docker host"
                 }
             },
             "reconfigure": {
                 "title": "Reconfigure Docker Monitor",
-                "description": "Update the Docker socket path.",
+                "description": "Update the Docker socket path or remote Docker Engine URL.",
                 "data": {
-                    "socket_path": "Socket path"
+                    "docker_host": "Docker host"
                 }
             }
         },
         "error": {
-            "connection": "Unable to connect to Docker. Check the socket path.",
+            "connection": "Unable to connect to Docker. Check the socket path or URL.",
+            "invalid_host": "Enter a socket path or a `unix://`, `tcp://`, `http://` or `https://` URL.",
             "unknown": "Unexpected error."
         },
         "abort": {
-            "already_configured": "This Docker socket is already configured.",
+            "already_configured": "This Docker host is already configured.",
             "reconfigure_successful": "Reconfiguration successful."
         }
     },

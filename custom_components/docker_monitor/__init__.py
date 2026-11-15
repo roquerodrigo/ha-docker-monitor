@@ -11,9 +11,10 @@ from homeassistant.loader import async_get_loaded_integration
 
 from .api import DockerMonitorApiClient
 from .card_registration import DockerMonitorCardRegistration
-from .const import DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
+from .const import CONFIG_ENTRY_VERSION, DEFAULT_SCAN_INTERVAL_SECONDS, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 from .data import DockerMonitorData
+from .docker_host import DockerHost
 from .exceptions import DockerMonitorApiClientError
 
 if TYPE_CHECKING:
@@ -42,11 +43,11 @@ async def async_setup_entry(
         entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_SECONDS),
     )
 
-    client = DockerMonitorApiClient(socket_path=config["socket_path"])
+    client = DockerMonitorApiClient(docker_host_url=config["docker_host"])
     try:
         await client.async_connect()
     except DockerMonitorApiClientError as exception:
-        message = f"Failed to connect to Docker at {config['socket_path']}"
+        message = f"Failed to connect to Docker at {config['docker_host']}"
         raise ConfigEntryNotReady(message) from exception
     # Registered before the first refresh so the client's aiohttp session is
     # closed on any setup failure from here on, not only on a clean unload.
@@ -73,6 +74,26 @@ async def async_setup_entry(
         name=f"{DOMAIN} first resource sample",
     )
 
+    return True
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant,
+    entry: DockerMonitorConfigEntry,
+) -> bool:
+    """Migrate an entry from the socket path to the Docker host URL."""
+    if entry.version > CONFIG_ENTRY_VERSION:
+        return False
+    if entry.version == 1:
+        socket_path = str(entry.data["socket_path"])
+        docker_host = DockerHost(socket_path)
+        hass.config_entries.async_update_entry(
+            entry,
+            data={"docker_host": docker_host.url},
+            title=docker_host.url if entry.title == socket_path else entry.title,
+            unique_id=docker_host.unique_id,
+            version=2,
+        )
     return True
 
 

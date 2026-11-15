@@ -31,13 +31,13 @@ def _fake_container(raw: dict) -> MagicMock:
 
 @pytest.fixture
 async def client(mock_docker):
-    c = DockerMonitorApiClient("/var/run/docker.sock")
+    c = DockerMonitorApiClient("unix:///var/run/docker.sock")
     await c.async_connect()
     return c
 
 
 async def test_connect_creates_docker_client(mock_docker):
-    client = DockerMonitorApiClient("/var/run/docker.sock")
+    client = DockerMonitorApiClient("unix:///var/run/docker.sock")
     await client.async_connect()
     assert client._docker is not None
 
@@ -211,7 +211,7 @@ async def test_get_container_data_oserror_raises(client, mock_docker):
 
 
 async def test_client_property_raises_when_not_connected():
-    client = DockerMonitorApiClient("/var/run/docker.sock")
+    client = DockerMonitorApiClient("unix:///var/run/docker.sock")
     with pytest.raises(DockerMonitorApiClientError):
         _ = client._client
 
@@ -226,7 +226,26 @@ async def test_connect_oserror_raises():
         "custom_components.docker_monitor.api.aiodocker.Docker",
         return_value=docker_instance,
     ):
-        client = DockerMonitorApiClient("/nonexistent")
+        client = DockerMonitorApiClient("unix:///nonexistent")
         with pytest.raises(DockerMonitorApiClientCommunicationError):
             await client.async_connect()
         docker_instance.close.assert_awaited_once()
+
+
+async def test_connect_passes_url_and_timeout(mock_docker):
+    client = DockerMonitorApiClient("tcp://192.168.1.10:2375")
+    with patch("custom_components.docker_monitor.api.aiodocker.Docker") as docker:
+        docker.return_value = mock_docker
+        await client.async_connect()
+    assert docker.call_args.kwargs["url"] == "tcp://192.168.1.10:2375"
+    assert docker.call_args.kwargs["timeout"].total == 30
+
+
+async def test_connect_rejected_url_raises():
+    with patch(
+        "custom_components.docker_monitor.api.aiodocker.Docker",
+        side_effect=ValueError("Missing protocol scheme in docker_host."),
+    ):
+        client = DockerMonitorApiClient("docker.local")
+        with pytest.raises(DockerMonitorApiClientCommunicationError):
+            await client.async_connect()

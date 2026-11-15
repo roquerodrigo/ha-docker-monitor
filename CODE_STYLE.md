@@ -188,12 +188,12 @@ with a one-line comment explaining the deliberate narrowing — see
 - Format: `"Failed to <verb> <object>: <cause>"` where `<cause>` is the
   exception or a short reason. Keep them short and grep-able.
 - Validate before creating the entry: `config_flow._validate` probes the
-  socket with a real connection so user-facing errors point at the bad
-  socket path, not a downstream traceback.
+  Docker host with a real connection so user-facing errors point at the bad
+  address, not a downstream traceback.
 - Custom exceptions form a hierarchy: `DockerMonitorApiClientError` (base;
   also raised when the client is used before `async_connect`) →
-  `…CommunicationError` (unreachable socket, `DockerError`, `OSError`).
-  There is no authentication error type — the Docker Unix socket is
+  `…CommunicationError` (unreachable daemon, `DockerError`, `OSError`).
+  There is no authentication error type — the Docker Engine API is
   unauthenticated. Wrap raw upstream errors at the API client boundary;
   everything above only catches the custom hierarchy.
 
@@ -214,19 +214,19 @@ with a one-line comment explaining the deliberate narrowing — see
 - Error mapping inside `_async_update_data`: every
   `DockerMonitorApiClientError` becomes `UpdateFailed`, with the message
   already sanitized at the API client boundary. There is no
-  `ConfigEntryAuthFailed` path — the Docker socket has no credentials.
+  `ConfigEntryAuthFailed` path — the Docker Engine API has no credentials.
 
 ## Config / options / diagnostics / repairs
 
 - `config_flow.py` carries the `user` and `reconfigure` steps, sharing one
-  `_validate` helper and one `_socket_schema` builder. There is no reauth
-  flow — the socket is unauthenticated.
+  `_validate` helper and one `_docker_host_schema` builder. There is no reauth
+  flow — the Docker Engine API is unauthenticated.
 - `options_flow.py` holds the single `DockerMonitorOptionsFlow`
   class. New options keys go into the `DockerMonitorOptionsData`
   TypedDict in `data/options_data.py`.
 - `diagnostics.py` returns `DockerMonitorDiagnosticsPayload`. Sensitive
   keys go into the `TO_REDACT: frozenset[str]` constant — currently empty,
-  because a socket path is not a secret.
+  because a Docker host address is not a secret.
 - There is no `repairs.py`; the integration surfaces no recoverable condition
   that warrants a repair flow (see `CLAUDE.md`). Don't add one speculatively.
 

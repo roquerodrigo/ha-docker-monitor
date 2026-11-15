@@ -95,7 +95,8 @@ async def setup_integration(hass, mock_api_client, enable_custom_integrations):
 
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={"socket_path": "/var/run/docker.sock"},
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=2,
         unique_id="var-run-docker-sock",
     )
     entry.add_to_hass(hass)

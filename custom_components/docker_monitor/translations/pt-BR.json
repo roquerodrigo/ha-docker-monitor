@@ -3,25 +3,26 @@
         "step": {
             "user": {
                 "title": "Configurar Docker Monitor",
-                "description": "Informe o caminho do socket Docker.",
+                "description": "Informe o caminho do socket Docker ou a URL de um Docker Engine remoto, por exemplo `/var/run/docker.sock` ou `tcp://192.168.1.10:2375`.",
                 "data": {
-                    "socket_path": "Caminho do socket"
+                    "docker_host": "Host Docker"
                 }
             },
             "reconfigure": {
                 "title": "Reconfigurar Docker Monitor",
-                "description": "Atualize o caminho do socket Docker.",
+                "description": "Atualize o caminho do socket Docker ou a URL do Docker Engine remoto.",
                 "data": {
-                    "socket_path": "Caminho do socket"
+                    "docker_host": "Host Docker"
                 }
             }
         },
         "error": {
-            "connection": "Não foi possível conectar ao Docker. Verifique o caminho do socket.",
+            "connection": "Não foi possível conectar ao Docker. Verifique o caminho do socket ou a URL.",
+            "invalid_host": "Informe um caminho de socket ou uma URL `unix://`, `tcp://`, `http://` ou `https://`.",
             "unknown": "Erro inesperado."
         },
         "abort": {
-            "already_configured": "Este socket Docker já está configurado.",
+            "already_configured": "Este host Docker já está configurado.",
             "reconfigure_successful": "Reconfiguração concluída."
         }
     },

@@ -99,7 +99,8 @@ async def test_setup_retries_when_connect_fails(
     )
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={"socket_path": "/var/run/docker.sock"},
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=2,
         unique_id="var-run-docker-sock",
     )
     entry.add_to_hass(hass)
@@ -124,7 +125,8 @@ async def test_setup_closes_client_when_first_refresh_fails(
     )
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={"socket_path": "/var/run/docker.sock"},
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=2,
         unique_id="var-run-docker-sock",
     )
     entry.add_to_hass(hass)
@@ -163,7 +165,8 @@ async def test_scan_interval_from_options(
 
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={"socket_path": "/var/run/docker.sock"},
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=2,
         options={CONF_SCAN_INTERVAL: 60},
         unique_id="custom",
     )
@@ -171,3 +174,68 @@ async def test_scan_interval_from_options(
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
     assert entry.runtime_data.coordinator.update_interval == timedelta(seconds=60)
+
+
+async def test_migrate_socket_path_entry(
+    hass, mock_api_client, enable_custom_integrations
+):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.docker_monitor.const import DOMAIN
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="/var/run/docker.sock",
+        data={"socket_path": "/var/run/docker.sock"},
+        unique_id="var_run_docker_sock",
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.state == ConfigEntryState.LOADED
+    assert entry.version == 2
+    assert entry.data == {"docker_host": "unix:///var/run/docker.sock"}
+    assert entry.title == "unix:///var/run/docker.sock"
+    assert entry.unique_id == "unix_var_run_docker_sock"
+
+
+async def test_migrate_keeps_custom_title(
+    hass, mock_api_client, enable_custom_integrations
+):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.docker_monitor.const import DOMAIN
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Raspberry Pi",
+        data={"socket_path": "/var/run/docker.sock"},
+        unique_id="var_run_docker_sock",
+        version=1,
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done(wait_background_tasks=True)
+
+    assert entry.title == "Raspberry Pi"
+
+
+async def test_migrate_refuses_future_version(
+    hass, mock_api_client, enable_custom_integrations
+):
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.docker_monitor.const import DOMAIN
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=3,
+    )
+    entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+    assert entry.state == ConfigEntryState.MIGRATION_ERROR

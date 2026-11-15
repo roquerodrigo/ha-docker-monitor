@@ -10,8 +10,12 @@ LOGGER: Logger = getLogger(__package__)
 DOMAIN = "docker_monitor"
 ATTRIBUTION = "Data provided by Docker Engine API"
 
-CONF_SOCKET_PATH = "socket_path"
-DEFAULT_SOCKET_PATH = "/var/run/docker.sock"
+CONFIG_ENTRY_VERSION = 2
+
+CONF_DOCKER_HOST = "docker_host"
+DEFAULT_DOCKER_HOST = "unix:///var/run/docker.sock"
+SUPPORTED_DOCKER_HOST_SCHEMES = frozenset({"unix", "tcp", "http", "https"})
+REQUEST_TIMEOUT = timedelta(seconds=30)
 
 DEFAULT_SCAN_INTERVAL_SECONDS = 15
 MIN_SCAN_INTERVAL_SECONDS = 10
