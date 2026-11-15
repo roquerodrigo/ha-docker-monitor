@@ -59,6 +59,7 @@ For each container:
 ## Options
 
 - **Scan interval** (default: 15 seconds, minimum: 10 seconds)
+- **Device name suffix** (default: none) — appended to every container name as `container @ suffix`, so the containers of each host can be told apart, e.g. `grafana @ Oracle` and its entity "grafana @ Oracle CPU". Leave it empty for no suffix. Changing it renames the devices and entities but not their entity IDs: entities created before the change keep their current ID.
 
 ## Bundled Lovelace card
 

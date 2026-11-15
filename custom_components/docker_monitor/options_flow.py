@@ -9,7 +9,11 @@ from homeassistant.config_entries import ConfigFlowResult, OptionsFlow
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.helpers import selector
 
-from .const import DEFAULT_SCAN_INTERVAL_SECONDS, MIN_SCAN_INTERVAL_SECONDS
+from .const import (
+    CONF_DEVICE_NAME_SUFFIX,
+    DEFAULT_SCAN_INTERVAL_SECONDS,
+    MIN_SCAN_INTERVAL_SECONDS,
+)
 
 if TYPE_CHECKING:
     from .data import DockerMonitorOptionsData
@@ -30,6 +34,10 @@ class DockerMonitorOptionsFlow(OptionsFlow):
             CONF_SCAN_INTERVAL,
             DEFAULT_SCAN_INTERVAL_SECONDS,
         )
+        current_suffix: str = self.config_entry.options.get(
+            CONF_DEVICE_NAME_SUFFIX,
+            "",
+        )
 
         return self.async_show_form(
             step_id="init",
@@ -46,6 +54,12 @@ class DockerMonitorOptionsFlow(OptionsFlow):
                             mode=selector.NumberSelectorMode.BOX,
                         ),
                     ),
+                    # A suggested value instead of a default, so clearing the
+                    # field removes the suffix rather than restoring it.
+                    vol.Optional(
+                        CONF_DEVICE_NAME_SUFFIX,
+                        description={"suggested_value": current_suffix},
+                    ): selector.TextSelector(),
                 },
             ),
         )

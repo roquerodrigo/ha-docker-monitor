@@ -80,9 +80,17 @@ the unique_id and the title when the title was still the path.
 ### Options flow
 
 `options_flow.py` exposes `scan_interval` (seconds; min `MIN_SCAN_INTERVAL_SECONDS`
-= 10, default `DEFAULT_SCAN_INTERVAL_SECONDS` = 15). Changing it triggers
-`async_reload_entry`, which re-instantiates the coordinator with the new
-`update_interval`.
+= 10, default `DEFAULT_SCAN_INTERVAL_SECONDS` = 15) and `device_name_suffix`.
+Changing either triggers `async_reload_entry`, which re-instantiates the
+coordinator with the new `update_interval` and re-adds the entities.
+
+`device_name_suffix` only changes the device **name**
+(`DockerMonitorEntity._device_name`: `"<container> @ <suffix>"`, blank means
+none); the identifiers stay the bare container name, so devices, unique_ids
+and the stale-device logic are unaffected. Entity names follow the device name
+(`has_entity_name`), and Home Assistant derives the entity_id from it only when
+an entity is first registered. The field uses `suggested_value`, not
+`default`: with a default, clearing it would bring the old suffix back.
 
 ### API client
 

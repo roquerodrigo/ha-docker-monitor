@@ -9,3 +9,4 @@ class DockerMonitorOptionsData(TypedDict, total=False):
     """Shape of the options writable by the options flow."""
 
     scan_interval: NotRequired[int]
+    device_name_suffix: NotRequired[str]
