@@ -35,7 +35,7 @@ async def test_step_user_shows_form(hass, enable_custom_integrations):
     assert result["step_id"] == "user"
 
 
-async def test_step_user_success(hass, enable_custom_integrations):
+async def test_step_user_success(hass, mock_api_client, enable_custom_integrations):
     with _patch_client() as mock:
         instance = mock.return_value
         instance.async_connect = AsyncMock()
@@ -52,7 +52,9 @@ async def test_step_user_success(hass, enable_custom_integrations):
     assert result["result"].unique_id == "unix_var_run_docker_sock"
 
 
-async def test_step_user_duplicate_aborts(hass, enable_custom_integrations):
+async def test_step_user_duplicate_aborts(
+    hass, mock_api_client, enable_custom_integrations
+):
     with _patch_client() as mock:
         instance = mock.return_value
         instance.async_connect = AsyncMock()
@@ -137,6 +139,7 @@ async def test_reconfigure_success(hass, mock_api_client, enable_custom_integrat
             result["flow_id"],
             user_input=NEW_INPUT,
         )
+        await hass.async_block_till_done(wait_background_tasks=True)
     assert result["type"] == FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data["docker_host"] == "tcp://192.168.1.10:2375"
