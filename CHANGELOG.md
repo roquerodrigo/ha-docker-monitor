@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.4.0...v1.4.1) (2026-11-15)
+
+### Bug fixes
+
+- Containers of unnamed buildx builders, such as those created on every CI job by docker/setup-buildx-action, are no longer added as devices, which stops leftover statistics without a matching entity. ([#76](https://github.com/roquerodrigo/ha-docker-monitor/pull/76))
+
 ## [1.4.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.2...v1.4.0) (2026-11-15)
 
 Docker Monitor can now monitor remote Docker hosts and adds uptime, image and image tag sensors plus a device name suffix option.
