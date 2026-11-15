@@ -9,7 +9,7 @@
 
 ---
 
-Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the local Docker Engine API. Each named container becomes a device with CPU usage, memory usage, and health check entities.
+Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the Docker Engine API, on the local host or on remote hosts. Each named container becomes a device with CPU usage, memory usage, and health check entities.
 
 ## Installation
 
@@ -17,20 +17,34 @@ Install through HACS using the button above, or manually copy `custom_components
 
 ## Prerequisites
 
-The Docker socket (`/var/run/docker.sock`) must be mounted into the Home Assistant container. Add to your compose:
+To monitor the host Home Assistant runs on, mount the Docker socket (`/var/run/docker.sock`) into the Home Assistant container. Add to your compose:
 
 ```yaml
 volumes:
   - /var/run/docker.sock:/var/run/docker.sock:ro
 ```
 
+To monitor another host, its Docker Engine API must be reachable over TCP. The integration only reads from the API, so expose it through a read-only proxy such as [docker-socket-proxy](https://github.com/Tecnativa/docker-socket-proxy) with `CONTAINERS=1`, and only on a trusted network: the API has no authentication, and container inspection returns each container's environment variables.
+
+```yaml
+services:
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy
+    environment:
+      CONTAINERS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - 192.168.1.10:2375:2375
+```
+
 ## Configuration
 
 1. Go to **Settings > Devices & Services > Add Integration**.
 2. Search for **Docker Monitor**.
-3. Enter the Docker socket path (default: `/var/run/docker.sock`).
+3. Enter the Docker host: a socket path (default: `/var/run/docker.sock`) or the URL of a remote Docker Engine (`tcp://192.168.1.10:2375`). Plain `unix://`, `tcp://`, `http://` and `https://` URLs are accepted; TLS client certificates and `ssh://` are not supported.
 
-The integration will automatically discover all running named containers and create a device for each one.
+The integration will automatically discover all running named containers and create a device for each one. Add the integration once per host to monitor several hosts; containers with the same name on different hosts stay separate devices on Home Assistant 2026.10 or later.
 
 ## Entities
 
@@ -80,7 +94,7 @@ again flips its direction), and is translated into English and Portuguese
 
 ## How it works
 
-- Connects to the Docker Engine API via Unix socket using [aiodocker](https://github.com/aio-libs/aiodocker).
+- Connects to the Docker Engine API via a Unix socket or TCP using [aiodocker](https://github.com/aio-libs/aiodocker); a request that takes longer than 30 seconds fails, and the entities become unavailable until the host answers again.
 - Polls all running containers at the configured interval.
 - Containers are identified by name (stable across `docker compose up --force-recreate`).
 - Auto-named containers (Compose one-off `run` containers and id-like hex names) are excluded.

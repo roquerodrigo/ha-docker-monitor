@@ -6,8 +6,9 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import aiodocker
+import aiohttp
 
-from .const import LOGGER, RUNNING_STATE
+from .const import LOGGER, REQUEST_TIMEOUT, RUNNING_STATE
 from .exceptions import (
     DockerMonitorApiClientCommunicationError,
     DockerMonitorApiClientError,
@@ -27,11 +28,11 @@ _HEX_DIGITS = frozenset("0123456789abcdef")
 
 
 class DockerMonitorApiClient:
-    """Async client that talks to the Docker Engine via a Unix socket."""
+    """Async client that talks to the Docker Engine over a socket or TCP."""
 
-    def __init__(self, socket_path: str) -> None:
+    def __init__(self, docker_host_url: str) -> None:
         """Initialize."""
-        self._socket_path = socket_path
+        self._docker_host_url = docker_host_url
         self._docker: aiodocker.Docker | None = None
 
     async def async_connect(self) -> None:
@@ -39,17 +40,26 @@ class DockerMonitorApiClient:
         Open a connection to the Docker daemon and verify it responds.
 
         ``aiodocker.Docker(...)`` is lazy — constructing it never touches
-        the socket — so a bad path only surfaces on the first request.
-        Issue a lightweight ``version()`` here so an unreachable or
-        non-existent socket fails fast at connect time (which is what the
-        config flow relies on to validate the path).
+        the daemon — so a bad address only surfaces on the first request.
+        Issue a lightweight ``version()`` here so an unreachable daemon
+        fails fast at connect time (which is what the config flow relies on
+        to validate the address).
         """
-        docker = aiodocker.Docker(url=f"unix://{self._socket_path}")
+        try:
+            docker = aiodocker.Docker(
+                url=self._docker_host_url,
+                timeout=aiohttp.ClientTimeout(
+                    total=REQUEST_TIMEOUT.total_seconds(),
+                ),
+            )
+        except ValueError as exception:
+            msg = f"Failed to connect to Docker at {self._docker_host_url}: {exception}"
+            raise DockerMonitorApiClientCommunicationError(msg) from exception
         try:
             await docker.version()
         except (aiodocker.DockerError, OSError, ValueError) as exception:
             await docker.close()
-            msg = f"Failed to connect to Docker at {self._socket_path}: {exception}"
+            msg = f"Failed to connect to Docker at {self._docker_host_url}: {exception}"
             raise DockerMonitorApiClientCommunicationError(msg) from exception
         self._docker = docker
 

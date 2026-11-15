@@ -19,7 +19,8 @@ from custom_components.docker_monitor.exceptions import (
 def _entry(hass) -> MockConfigEntry:
     entry = MockConfigEntry(
         domain=DOMAIN,
-        data={"socket_path": "/var/run/docker.sock"},
+        data={"docker_host": "unix:///var/run/docker.sock"},
+        version=2,
     )
     entry.add_to_hass(hass)
     return entry

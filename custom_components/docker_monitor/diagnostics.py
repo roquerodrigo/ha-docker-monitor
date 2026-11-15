@@ -26,7 +26,7 @@ async def async_get_config_entry_diagnostics(
         "title": entry.title,
         "version": entry.version,
         "domain": entry.domain,
-        "data": {"socket_path": str(entry.data.get("socket_path", ""))},
+        "data": {"docker_host": str(entry.data.get("docker_host", ""))},
         "options": cast("DockerMonitorOptionsData", dict(entry.options)),
     }
     return {

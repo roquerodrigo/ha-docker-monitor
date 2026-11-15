@@ -53,17 +53,29 @@ The `data/` package defines the shared typed contracts. `data/runtime.py` holds 
 ### Config flow surface
 
 `config_flow.py` implements two user-facing steps; both share the `_validate`
-helper and the `_socket_schema` builder. There is **no** authentication —
-the integration talks to a local Docker socket, so there is no reauth flow:
+helper and the `_docker_host_schema` builder. There is **no** authentication —
+the Docker Engine API takes no credentials over a socket or plain TCP, so there
+is no reauth flow:
 
-- `async_step_user` — initial setup; sets unique_id from `slugify(socket_path)`, aborts on duplicate. Entry title is the socket path itself (so multiple sockets are distinguishable in the UI).
-- `async_step_reconfigure` — lets the user edit the socket path via the integration's three-dot menu, no delete-and-re-add cycle.
+- `async_step_user` — initial setup; sets unique_id from `DockerHost.unique_id` (the slug of the normalized URL), aborts on duplicate. Entry title is the URL itself (so multiple hosts are distinguishable in the UI).
+- `async_step_reconfigure` — lets the user edit the Docker host via the integration's three-dot menu, no delete-and-re-add cycle.
 - `async_get_options_flow` — returns `DockerMonitorOptionsFlow` from `options_flow.py` (one class per file).
 
-`_validate` opens a client and calls `async_connect()` (which issues a real
-`version()` probe) plus `async_list_container_names()`; a
+`_validate` rejects an address `DockerHost.is_supported` refuses with
+`{"base": "invalid_host"}`, then opens a client and calls `async_connect()`
+(which issues a real `version()` probe) plus `async_list_container_names()`; a
 `CommunicationError` maps to `{"base": "connection"}`, anything else to
 `{"base": "unknown"}`.
+
+### Docker host
+
+`docker_host.py` holds `DockerHost`, the address value object. The entry
+stores the normalized URL under `docker_host`: a bare socket path becomes a
+`unix://` URL, so a path and its URL share one unique_id. `unix`, `tcp`, `http`
+and `https` are accepted; `ssh://` is refused because aiodocker needs
+`asyncssh` for it, which the manifest does not require. Config entry version 1
+stored `socket_path`; `async_migrate_entry` rewrites it to version 2, along with
+the unique_id and the title when the title was still the path.
 
 ### Options flow
 
@@ -79,10 +91,12 @@ the integration talks to a local Docker socket, so there is no reauth flow:
 `exceptions/`:
 
 - `DockerMonitorApiClientError` (base; also raised when the client is used before `async_connect`)
-- `DockerMonitorApiClientCommunicationError` (socket unreachable, `DockerError`, `OSError`)
+- `DockerMonitorApiClientCommunicationError` (daemon unreachable, URL rejected by aiodocker, `DockerError`, `OSError`)
 
 `aiodocker.Docker(...)` is lazy, so `async_connect` issues a `version()` call
-to fail fast on a bad socket path. `async_list_container_states` reads the
+to fail fast on a bad address. Every request carries `REQUEST_TIMEOUT` (30 s):
+aiohttp has no default timeout, and a remote host that stops answering would
+otherwise hang the coordinator; the resulting `TimeoutError` is an `OSError`. `async_list_container_states` reads the
 public `container["Names"]` mapping and filters auto-generated names via
 `_is_anonymous`: only fully hex, id-like names and Compose one-off
 `<project>-<service>-run-<hash>` names — a user-named container that merely
@@ -95,19 +109,19 @@ formula, plus `_read_online_cpus` for the CPUs the container can use) and
 memory in MB (`_calculate_memory`, page cache subtracted the way `docker stats`
 does: `total_inactive_file` on cgroup v1, `inactive_file` on cgroup v2, never
 the legacy `cache` key). There is no
-authentication error type — Docker over a Unix socket is unauthenticated.
+authentication error type — the Docker Engine API is unauthenticated.
 
 ### Diagnostics
 
 `diagnostics.py` returns `DockerMonitorDiagnosticsPayload` with the entry data
-(socket path) and the full coordinator snapshot. `TO_REDACT` is **empty** —
-a socket path is not a secret. `.github/ISSUE_TEMPLATE/bug.yml` asks users to
+(Docker host URL) and the full coordinator snapshot. `TO_REDACT` is **empty** —
+a socket path or host address is not a secret. `.github/ISSUE_TEMPLATE/bug.yml` asks users to
 attach the dump.
 
 ### Repairs
 
 There is no `repairs.py`. `quality_scale.yaml` marks `repair-issues: exempt` —
-the integration (a local Docker socket poller) surfaces no recoverable
+the integration (a Docker Engine poller) surfaces no recoverable
 condition that would warrant a repair flow. Don't add one speculatively; if a
 real recoverable failure mode shows up, flip that quality-scale entry when
 adding the flow.
