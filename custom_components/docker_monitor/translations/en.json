@@ -31,7 +31,11 @@
             "init": {
                 "title": "Docker Monitor options",
                 "data": {
-                    "scan_interval": "Scan interval (seconds)"
+                    "scan_interval": "Scan interval (seconds)",
+                    "device_name_suffix": "Device name suffix"
+                },
+                "data_description": {
+                    "device_name_suffix": "Appended to every container name as “container @ suffix”, to tell hosts apart. Leave empty for no suffix. Entity IDs created before a change keep their current ID."
                 }
             }
         }

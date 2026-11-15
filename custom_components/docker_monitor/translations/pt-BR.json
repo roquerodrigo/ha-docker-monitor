@@ -31,7 +31,11 @@
             "init": {
                 "title": "Opções do Docker Monitor",
                 "data": {
-                    "scan_interval": "Intervalo de atualização (segundos)"
+                    "scan_interval": "Intervalo de atualização (segundos)",
+                    "device_name_suffix": "Sufixo do nome dos dispositivos"
+                },
+                "data_description": {
+                    "device_name_suffix": "Adicionado ao nome de cada contêiner no formato “contêiner @ sufixo”, para distinguir hosts. Deixe vazio para não usar sufixo. Entidades criadas antes de uma mudança mantêm o ID atual."
                 }
             }
         }

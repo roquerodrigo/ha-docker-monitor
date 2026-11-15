@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import ATTRIBUTION, DOMAIN
+from .const import ATTRIBUTION, CONF_DEVICE_NAME_SUFFIX, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
 
 if TYPE_CHECKING:
@@ -39,10 +39,20 @@ class DockerMonitorEntity(
         image_name = image.split(":")[0] if image else ""
         return DeviceInfo(
             identifiers={(DOMAIN, self._container_name)},
-            name=self._container_name,
+            name=self._device_name,
             manufacturer=image_name,
             sw_version=image,
         )
+
+    @property
+    def _device_name(self) -> str:
+        """Return the container name, followed by the entry's suffix when set."""
+        suffix = str(
+            self.coordinator.config_entry.options.get(CONF_DEVICE_NAME_SUFFIX, ""),
+        ).strip()
+        if not suffix:
+            return self._container_name
+        return f"{self._container_name} @ {suffix}"
 
     @property
     def available(self) -> bool:

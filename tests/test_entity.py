@@ -8,10 +8,11 @@ from custom_components.docker_monitor.entity import DockerMonitorEntity
 from tests.conftest import SAMPLE_PAYLOAD
 
 
-def _make_entity(name="prometheus", payload=None):
+def _make_entity(name="prometheus", payload=None, options=None):
     coordinator = MagicMock()
     coordinator.data = payload or copy.deepcopy(SAMPLE_PAYLOAD)
     coordinator.config_entry.entry_id = "eid"
+    coordinator.config_entry.options = options or {}
     coordinator.last_update_success = True
     return DockerMonitorEntity(coordinator=coordinator, container_name=name)
 
@@ -26,6 +27,21 @@ def test_has_entity_name():
 
 def test_device_info_name():
     assert _make_entity().device_info["name"] == "prometheus"
+
+
+def test_device_info_name_with_suffix():
+    entity = _make_entity(options={"device_name_suffix": " Oracle "})
+    assert entity.device_info["name"] == "prometheus @ Oracle"
+
+
+def test_device_info_name_ignores_blank_suffix():
+    entity = _make_entity(options={"device_name_suffix": "  "})
+    assert entity.device_info["name"] == "prometheus"
+
+
+def test_device_info_identifiers_ignore_suffix():
+    entity = _make_entity(options={"device_name_suffix": "Oracle"})
+    assert entity.device_info["identifiers"] == {(DOMAIN, "prometheus")}
 
 
 def test_device_info_identifiers_contain_name():
