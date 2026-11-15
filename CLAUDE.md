@@ -106,9 +106,11 @@ to fail fast on a bad address. Every request carries `REQUEST_TIMEOUT` (30 s):
 aiohttp has no default timeout, and a remote host that stops answering would
 otherwise hang the coordinator; the resulting `TimeoutError` is an `OSError`. `async_list_container_states` reads the
 public `container["Names"]` mapping and filters auto-generated names via
-`_is_anonymous`: only fully hex, id-like names and Compose one-off
-`<project>-<service>-run-<hash>` names — a user-named container that merely
-ends in a hex-looking segment must stay visible. `async_get_container_data` gathers `stats(stream=False)` +
+`_is_anonymous`: only fully hex, id-like names, Compose one-off
+`<project>-<service>-run-<hash>` names and the BuildKit nodes of unnamed
+buildx builders (`buildx_buildkit_builder-<uuid><index>`, created per CI job by
+`docker/setup-buildx-action`) — a user-named container that merely ends in a
+hex-looking segment, or a named builder's node, must stay visible. `async_get_container_data` gathers `stats(stream=False)` +
 `show()` (stats only when `include_stats=True`: Docker holds a non-streamed
 stats request about a second for its second CPU sample, so the coordinator's
 first refresh skips stats and `async_setup_entry` schedules a full refresh in

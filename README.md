@@ -101,7 +101,7 @@ again flips its direction), and is translated into English and Portuguese
 - Connects to the Docker Engine API via a Unix socket or TCP using [aiodocker](https://github.com/aio-libs/aiodocker); a request that takes longer than 30 seconds fails, and the entities become unavailable until the host answers again.
 - Polls all running containers at the configured interval.
 - Containers are identified by name (stable across `docker compose up --force-recreate`).
-- Auto-named containers (Compose one-off `run` containers and id-like hex names) are excluded.
+- Auto-named containers (Compose one-off `run` containers, id-like hex names and the BuildKit containers of throwaway buildx builders, such as the ones `docker/setup-buildx-action` creates on every CI job) are excluded.
 - Stopped containers become unavailable and keep their device.
 - Containers deleted from Docker have their device removed automatically after five minutes, so a recreated container keeps its device and entity settings.
 

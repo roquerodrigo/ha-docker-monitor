@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import TYPE_CHECKING
 
 import aiodocker
@@ -29,6 +30,10 @@ type JsonObject = dict[str, JsonValue]
 _MIN_HASH_LENGTH = 12
 _UNSET_TIMESTAMP_YEAR = 1
 _HEX_DIGITS = frozenset("0123456789abcdef")
+_GENERATED_BUILDX_NODE_NAME = re.compile(
+    r"buildx_buildkit_builder-"
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\d+",
+)
 
 
 class DockerMonitorApiClient:
@@ -178,12 +183,14 @@ def _is_anonymous(name: str) -> bool:
     """
     Return True for auto-generated container names.
 
-    Matches the two auto-generated shapes Docker actually produces — Compose
-    one-off containers (``<project>-<service>-run-<hash>``) and fully hex,
-    id-like names — without hiding a user-named container that merely ends in
-    a hex-looking segment.
+    Matches the auto-generated shapes Docker actually produces — Compose
+    one-off containers (``<project>-<service>-run-<hash>``), fully hex,
+    id-like names, and the BuildKit nodes of throwaway buildx builders
+    (``buildx_buildkit_builder-<uuid><node index>``, one per CI job) — without
+    hiding a user-named container that merely ends in a hex-looking segment or
+    a buildx builder that was given a name.
     """
-    if _is_hex_hash(name):
+    if _is_hex_hash(name) or _GENERATED_BUILDX_NODE_NAME.fullmatch(name):
         return True
     _, separator, suffix = name.rpartition("-run-")
     return bool(separator) and _is_hex_hash(suffix)

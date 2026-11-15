@@ -47,6 +47,28 @@ def test_is_anonymous_short_run_suffix():
     assert _is_anonymous("myproject-backup-run-a1b2") is False
 
 
+def test_is_anonymous_generated_buildx_builder_node():
+    assert (
+        _is_anonymous(
+            "buildx_buildkit_builder-0b020b48-b05c-406d-9c8b-9c21eb99cc630",
+        )
+        is True
+    )
+
+
+def test_is_anonymous_keeps_named_buildx_builder_node():
+    assert _is_anonymous("buildx_buildkit_ci-builder0") is False
+
+
+def test_is_anonymous_keeps_buildx_node_without_index():
+    assert (
+        _is_anonymous(
+            "buildx_buildkit_builder-0b020b48-b05c-406d-9c8b-9c21eb99cc63",
+        )
+        is False
+    )
+
+
 def test_calculate_cpu_percent_basic():
     stats = {
         "cpu_stats": {
