@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.4.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.2...v1.4.0) (2026-11-15)
+
+Docker Monitor can now monitor remote Docker hosts and adds uptime, image and image tag sensors plus a device name suffix option.
+
+### New features
+
+- Remote Docker hosts can now be monitored: the Docker host field accepts a socket path or a tcp, http or https URL, and the integration can be added once per host. ([#71](https://github.com/roquerodrigo/ha-docker-monitor/pull/71))
+- Each container device gains Uptime, Image and Image tag sensors, with the image sensors shown as diagnostics. ([#74](https://github.com/roquerodrigo/ha-docker-monitor/pull/74))
+- A new Device name suffix option appends a suffix to every container name, as container @ suffix, so containers of different hosts can be told apart. ([#72](https://github.com/roquerodrigo/ha-docker-monitor/pull/72))
+
+### Improvements
+
+- Requests to the Docker Engine now time out after 30 seconds, so an unresponsive host makes its entities unavailable instead of stalling updates. ([#71](https://github.com/roquerodrigo/ha-docker-monitor/pull/71))
+- Existing entries are migrated automatically, with the stored socket path converted to a unix URL. ([#71](https://github.com/roquerodrigo/ha-docker-monitor/pull/71))
+
+### Bug fixes
+
+- The device manufacturer for images from a registry with a port, such as localhost:5000/app:2.0, is no longer shown truncated as localhost. ([#74](https://github.com/roquerodrigo/ha-docker-monitor/pull/74))
+
 ## [1.3.2](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.3.1...v1.3.2) (2026-11-08)
 
 ### Improvements
