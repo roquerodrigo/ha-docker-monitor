@@ -47,6 +47,15 @@
             },
             "memory": {
                 "name": "Memory"
+            },
+            "uptime": {
+                "name": "Uptime"
+            },
+            "image": {
+                "name": "Image"
+            },
+            "image_tag": {
+                "name": "Image tag"
             }
         },
         "binary_sensor": {

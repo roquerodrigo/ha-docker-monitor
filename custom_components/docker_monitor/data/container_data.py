@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class DockerMonitorContainerData(TypedDict):
@@ -17,3 +20,4 @@ class DockerMonitorContainerData(TypedDict):
     memory_usage_mb: float | None
     memory_limit_mb: float | None
     health_status: str | None
+    started_at: datetime | None

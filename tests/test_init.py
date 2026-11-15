@@ -46,7 +46,7 @@ async def test_setup_entry_loads(hass, setup_integration):
 
 async def test_setup_entry_creates_sensor_entities(hass, setup_integration):
     sensors = hass.states.async_all("sensor")
-    assert len(sensors) == 4  # 2 containers x (cpu + memory)
+    assert len(sensors) == 10  # 2 containers x (cpu, memory, uptime, image, tag)
 
 
 async def test_setup_entry_creates_binary_sensor_for_healthcheck(

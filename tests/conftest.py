@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, patch
 
@@ -21,6 +22,7 @@ SAMPLE_CONTAINER: dict = {
     "memory_usage_mb": 63.7,
     "memory_limit_mb": 7800.0,
     "health_status": "healthy",
+    "started_at": datetime(2026, 11, 10, 17, 30, 18, 347365, tzinfo=UTC),
 }
 
 SAMPLE_CONTAINER_NO_HEALTH: dict = {
@@ -33,6 +35,7 @@ SAMPLE_CONTAINER_NO_HEALTH: dict = {
     "memory_usage_mb": 40.0,
     "memory_limit_mb": 7800.0,
     "health_status": None,
+    "started_at": datetime(2026, 11, 12, 8, 0, tzinfo=UTC),
 }
 
 SAMPLE_PAYLOAD: dict = {

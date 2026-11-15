@@ -116,7 +116,13 @@ the background — CPU and memory are `None` until it lands) and derives CPU% (`
 formula, plus `_read_online_cpus` for the CPUs the container can use) and
 memory in MB (`_calculate_memory`, page cache subtracted the way `docker stats`
 does: `total_inactive_file` on cgroup v1, `inactive_file` on cgroup v2, never
-the legacy `cache` key). There is no
+the legacy `cache` key). `show()` also
+supplies `State.StartedAt` (`_parse_started_at`, which maps Docker's
+`0001-01-01T00:00:00Z` never-started value to `None`) and `Config.Image`,
+which `DockerImageReference` (`image_reference.py`) splits into repository and
+tag for the image sensors and the device manufacturer: a colon only separates
+the tag after the last slash (registry ports), a missing tag means `latest`
+unless the reference is digest-pinned or a bare image ID. There is no
 authentication error type — the Docker Engine API is unauthenticated.
 
 ### Diagnostics

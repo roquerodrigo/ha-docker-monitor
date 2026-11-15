@@ -5,9 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .cpu_sensor import DockerMonitorCpuSensor
+from .image_sensor import DockerMonitorImageSensor
+from .image_tag_sensor import DockerMonitorImageTagSensor
 from .memory_sensor import DockerMonitorMemorySensor
+from .uptime_sensor import DockerMonitorUptimeSensor
 
 if TYPE_CHECKING:
+    from homeassistant.components.sensor import SensorEntity
     from homeassistant.core import HomeAssistant
     from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -31,10 +35,13 @@ async def async_setup_entry(
         if not new_names:
             return
 
-        entities: list[DockerMonitorCpuSensor | DockerMonitorMemorySensor] = []
+        entities: list[SensorEntity] = []
         for name in sorted(new_names):
             entities.append(DockerMonitorCpuSensor(coordinator, name))
             entities.append(DockerMonitorMemorySensor(coordinator, name))
+            entities.append(DockerMonitorUptimeSensor(coordinator, name))
+            entities.append(DockerMonitorImageSensor(coordinator, name))
+            entities.append(DockerMonitorImageTagSensor(coordinator, name))
 
         known_containers.update(new_names)
         async_add_entities(entities)

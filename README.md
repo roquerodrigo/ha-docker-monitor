@@ -9,7 +9,7 @@
 
 ---
 
-Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the Docker Engine API, on the local host or on remote hosts. Each named container becomes a device with CPU usage, memory usage, and health check entities.
+Custom [Home Assistant](https://www.home-assistant.io/) integration that monitors Docker containers via the Docker Engine API, on the local host or on remote hosts. Each named container becomes a device with CPU usage, memory usage, uptime, image, image tag and health check entities.
 
 ## Installation
 
@@ -54,6 +54,9 @@ For each container:
 |---|---|---|
 | CPU | Sensor | CPU usage percentage, as reported by `docker stats` (100 % is one fully used CPU); the `online_cpus` attribute holds how many CPUs the container can use |
 | Memory | Sensor | Memory usage in MB, excluding the page cache as `docker stats` does; the `memory_limit_mb` attribute holds the container limit |
+| Uptime | Sensor | Timestamp of the container's last start, shown as how long it has been running |
+| Image | Sensor (diagnostic) | Repository of the image the container runs, without the tag, e.g. `ghcr.io/owner/app` |
+| Image tag | Sensor (diagnostic) | Tag of that image, e.g. `1.27`; `latest` when the reference has none, and unknown when the image is pinned only by digest or ID |
 | Health | Binary Sensor | Health check status (only for containers with a health check configured) |
 
 ## Options
