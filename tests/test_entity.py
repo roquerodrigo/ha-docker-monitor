@@ -53,6 +53,13 @@ def test_device_info_manufacturer_is_image_name():
     assert _make_entity().device_info["manufacturer"] == "prom/prometheus"
 
 
+def test_device_info_manufacturer_keeps_registry_port():
+    payload = copy.deepcopy(SAMPLE_PAYLOAD)
+    payload["containers"]["prometheus"]["image"] = "localhost:5000/prometheus:v3"
+    entity = _make_entity(payload=payload)
+    assert entity.device_info["manufacturer"] == "localhost:5000/prometheus"
+
+
 def test_device_info_sw_version():
     assert _make_entity().device_info["sw_version"] == "prom/prometheus:v2.53.0"
 

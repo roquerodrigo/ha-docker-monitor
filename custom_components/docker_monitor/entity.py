@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import ATTRIBUTION, CONF_DEVICE_NAME_SUFFIX, DOMAIN
 from .coordinator import DockerMonitorDataUpdateCoordinator
+from .image_reference import DockerImageReference
 
 if TYPE_CHECKING:
     from .data import DockerMonitorContainerData, DockerMonitorPayload
@@ -36,7 +37,7 @@ class DockerMonitorEntity(
         """Return device info keyed by container name (stable across recreations)."""
         container = self._container
         image = container["image"] if container else ""
-        image_name = image.split(":")[0] if image else ""
+        image_name = DockerImageReference.parse(image).repository if image else ""
         return DeviceInfo(
             identifiers={(DOMAIN, self._container_name)},
             name=self._device_name,

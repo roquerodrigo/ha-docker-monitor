@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import aiodocker
 import aiohttp
+from homeassistant.util import dt as dt_util
 
 from .const import LOGGER, REQUEST_TIMEOUT, RUNNING_STATE
 from .exceptions import (
@@ -15,6 +16,8 @@ from .exceptions import (
 )
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from aiodocker.containers import DockerContainer
 
     from .data import DockerMonitorContainerData
@@ -24,6 +27,7 @@ type JsonValue = JsonPrimitive | list["JsonValue"] | dict[str, "JsonValue"]
 type JsonObject = dict[str, JsonValue]
 
 _MIN_HASH_LENGTH = 12
+_UNSET_TIMESTAMP_YEAR = 1
 _HEX_DIGITS = frozenset("0123456789abcdef")
 
 
@@ -133,6 +137,7 @@ class DockerMonitorApiClient:
         image: str = inspect.get("Config", {}).get("Image", "")
         status: str = inspect.get("State", {}).get("Status", "unknown")
         container_id: str = inspect.get("Id", "")[:12]
+        started_at = _parse_started_at(inspect.get("State", {}).get("StartedAt"))
 
         return {
             "name": name,
@@ -144,6 +149,7 @@ class DockerMonitorApiClient:
             "memory_usage_mb": memory_usage_mb,
             "memory_limit_mb": memory_limit_mb,
             "health_status": health_status,
+            "started_at": started_at,
         }
 
     @property
@@ -186,6 +192,20 @@ def _is_anonymous(name: str) -> bool:
 def _is_hex_hash(text: str) -> bool:
     """Return True when the text is a hex string long enough to be a hash."""
     return len(text) >= _MIN_HASH_LENGTH and set(text) <= _HEX_DIGITS
+
+
+def _parse_started_at(value: str | None) -> datetime | None:
+    """
+    Return when the container last started, or None when it never did.
+
+    Docker reports a never-started container as ``0001-01-01T00:00:00Z``.
+    """
+    if not value:
+        return None
+    started_at = dt_util.parse_datetime(value)
+    if started_at is None or started_at.year == _UNSET_TIMESTAMP_YEAR:
+        return None
+    return started_at
 
 
 def _calculate_cpu_percent(stats: JsonObject) -> float | None:

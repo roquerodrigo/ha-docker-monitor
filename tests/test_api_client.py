@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -148,6 +149,7 @@ async def test_get_container_data_returns_data(client, mock_docker):
             "State": {
                 "Status": "running",
                 "Health": {"Status": "healthy"},
+                "StartedAt": "2026-11-10T17:30:18.347365324Z",
             },
         },
     )
@@ -160,6 +162,7 @@ async def test_get_container_data_returns_data(client, mock_docker):
     assert data["memory_usage_mb"] == 100.0
     assert data["health_status"] == "healthy"
     assert data["container_id"] == "346ee219ec9f"
+    assert data["started_at"] == datetime(2026, 11, 10, 17, 30, 18, 347365, tzinfo=UTC)
 
 
 async def test_get_container_data_no_health(client, mock_docker):
@@ -176,6 +179,24 @@ async def test_get_container_data_no_health(client, mock_docker):
 
     data = await client.async_get_container_data("test")
     assert data["health_status"] is None
+    assert data["started_at"] is None
+
+
+@pytest.mark.parametrize("started_at", ["0001-01-01T00:00:00Z", "not a timestamp", ""])
+async def test_get_container_data_unset_start_is_none(client, mock_docker, started_at):
+    container = MagicMock()
+    container.stats = AsyncMock(return_value=[{}])
+    container.show = AsyncMock(
+        return_value={
+            "Id": "bed43db69acb",
+            "Config": {"Image": "test:latest"},
+            "State": {"Status": "created", "StartedAt": started_at},
+        },
+    )
+    mock_docker.containers.get = AsyncMock(return_value=container)
+
+    data = await client.async_get_container_data("test")
+    assert data["started_at"] is None
 
 
 async def test_get_container_data_without_stats_skips_the_stats_request(
