@@ -164,10 +164,11 @@ those shares.
 
 `__init__.py`'s `async_remove_config_entry_device` only allows deleting a
 device from the UI once its container name is missing from the latest
-coordinator payload (stopped, renamed or removed). A device backed by a
-container Docker still reports is refused, since the next poll would
-immediately re-create it; a container that comes back is simply registered
-again. `quality_scale.yaml` marks `stale-devices: done` for this.
+coordinator payload, which holds only running containers (so a stopped,
+renamed or removed one qualifies). A device backed by a running container is
+refused, since the next poll would immediately re-create it. A container that
+comes back only gets its entities again after the entry reloads: the
+platforms' `known_containers` sets never shrink. `quality_scale.yaml` marks `stale-devices: done` for this.
 
 Devices are also removed automatically. The coordinator lists every container
 (`async_list_container_states`, `all=True`) and only fetches stats for the
