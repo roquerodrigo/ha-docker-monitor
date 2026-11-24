@@ -53,8 +53,9 @@ rule `done` ahead of the code.
 - **Helper functions** may live in the same file as the single class that uses
   them (e.g. `_is_anonymous` and the stats calculators in `api.py`).
 - **`__init__.py` of the integration package** wires the entry lifecycle hooks
-  Home Assistant looks up by name — `async_setup_entry`, `async_unload_entry`,
-  `async_reload_entry`, `async_remove_config_entry_device` — and nothing else.
+  Home Assistant looks up by name — `async_setup_entry`, `async_migrate_entry`,
+  `async_unload_entry`, `async_remove_entry`, `async_reload_entry`,
+  `async_remove_config_entry_device` — and nothing else.
 
 ## Entities: one class per entity
 

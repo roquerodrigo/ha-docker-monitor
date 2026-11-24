@@ -1,55 +1,50 @@
-# Contribution guidelines
+# Contributing
 
-Contributing to this project should be as easy and transparent as possible, whether it's:
+Bug reports, ideas and pull requests are welcome.
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+## Reporting a bug
 
-## Github is used for everything
+Open an [issue](https://github.com/roquerodrigo/ha-docker-monitor/issues/new/choose) with:
 
-Github is used to host code, to track issues and feature requests, as well as accept pull requests.
+- the Home Assistant version and the integration version;
+- what you did, what you expected and what happened;
+- the debug log and the diagnostics downloaded from the integration's menu. The diagnostics hold the Docker host address and the names and images of your containers, so review them before attaching.
 
-Pull requests are the best way to propose changes to the codebase.
+## Development setup
 
-1. Fork the repo and create your branch from `main`.
-2. If you've changed something, update the documentation.
-3. Make sure your code lints (run `uv run ruff format --check .`, `uv run ruff check .` and `uv run mypy custom_components/docker_monitor`).
-4. Test your contribution.
-5. Issue that pull request!
+The project uses [uv](https://docs.astral.sh/uv/) and [Node.js](https://nodejs.org/) for the card's syntax check.
 
-## Any contributions you make will be under the MIT Software License
+```bash
+scripts/setup      # install the dependencies into .venv
+scripts/develop    # run Home Assistant at http://localhost:8123 with this integration loaded
+```
 
-In short, when you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project. Feel free to contact the maintainers if that's a concern.
+`scripts/develop` uses the configuration in [`config/`](config/). To have containers to monitor, give that Home Assistant access to a Docker socket or a read-only proxy, as described in the README.
 
-## Report bugs using Github's [issues](../../issues)
+## Checks
 
-GitHub issues are used to track public bugs.
-Report a bug by [opening a new issue](../../issues/new/choose); it's that easy!
+Run these before opening a pull request. CI runs the same ones, plus the Home Assistant Marketplace validation. `scripts/lint` runs all five in order.
 
-## Write bug reports with detail, background, and sample code
+```bash
+uv run ruff format .                                                     # format
+uv run ruff check . --fix                                                # lint
+uv run mypy custom_components/docker_monitor                             # type-check
+uv run pytest                                                            # tests, coverage must stay at 90 % or more
+node --check custom_components/docker_monitor/www/docker-monitor-card.js # card syntax
+```
 
-**Great Bug Reports** tend to have:
+`pre-commit install` runs the first three on every commit, along with whitespace, line ending and YAML, JSON and TOML checks.
 
-- A quick summary and/or background
-- Steps to reproduce
-  - Be specific!
-  - Give sample code if you can.
-- What you expected would happen
-- What actually happens
-- Notes (possibly including why you think this might be happening, or stuff you tried that didn't work)
+Read [CODE_STYLE.md](CODE_STYLE.md) before adding or restructuring code.
 
-## Use a Consistent Coding Style
+## Pull requests
 
-The project uses [ruff](https://docs.astral.sh/ruff/) (config in `pyproject.toml`). Run `uv run ruff format --check .`, `uv run ruff check .` and `uv run mypy custom_components/docker_monitor` before sending a PR.
-
-## Test your code modification
-
-This template is based on [docker_monitor template](https://github.com/ludeeus/docker_monitor).
-
-It comes with a development environment in a container, easy to launch if you use Visual Studio Code. With this container you will have a stand-alone Home Assistant instance running and already configured with the included [`configuration.yaml`](./config/configuration.yaml) file.
+1. Fork the repository and branch from `main`.
+2. Write commit messages as [Conventional Commits](https://www.conventionalcommits.org/). Releases and their notes are generated from them. Mark breaking changes with `!` or a `BREAKING CHANGE:` footer.
+3. Update `translations/en.json` and `translations/pt-BR.json` together when you change user-facing strings. `tests/test_translations.py` fails when their keys differ. The card keeps its own English and Portuguese (Brazil) strings in `www/docker-monitor-card.js`.
+4. Update the README when behaviour, configuration, entities or card options change.
+5. Fill in the pull request template.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its MIT License.
+Contributions are released under the project's [MIT License](LICENSE).
