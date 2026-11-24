@@ -55,7 +55,7 @@ async def test_options_flow_suffix_names_devices_and_entities(
     result = await hass.config_entries.options.async_init(setup_integration.entry_id)
     await hass.config_entries.options.async_configure(
         result["flow_id"],
-        user_input={CONF_SCAN_INTERVAL: 15, "device_name_suffix": "Oracle"},
+        user_input={CONF_SCAN_INTERVAL: 15, "device_name_suffix": "NAS"},
     )
     await hass.async_block_till_done(wait_background_tasks=True)
 
@@ -63,16 +63,16 @@ async def test_options_flow_suffix_names_devices_and_entities(
         (DOMAIN, "prometheus"), setup_integration.entry_id
     )
     assert device is not None
-    assert device.name == "prometheus @ Oracle"
+    assert device.name == "prometheus @ NAS"
     entity_id = er.async_get(hass).async_get_entity_id(
         "sensor", DOMAIN, f"{setup_integration.entry_id}_prometheus_cpu"
     )
-    assert hass.states.get(entity_id).name == "prometheus @ Oracle CPU"
+    assert hass.states.get(entity_id).name == "prometheus @ NAS CPU"
 
 
 async def test_options_flow_suggests_current_suffix(hass, setup_integration):
     hass.config_entries.async_update_entry(
-        setup_integration, options={"device_name_suffix": "Oracle"}
+        setup_integration, options={"device_name_suffix": "NAS"}
     )
     await hass.async_block_till_done()
     result = await hass.config_entries.options.async_init(setup_integration.entry_id)
@@ -80,7 +80,7 @@ async def test_options_flow_suggests_current_suffix(hass, setup_integration):
     suffix_key = next(
         k for k in schema if getattr(k, "schema", k) == "device_name_suffix"
     )
-    assert suffix_key.description == {"suggested_value": "Oracle"}
+    assert suffix_key.description == {"suggested_value": "NAS"}
 
 
 async def test_options_flow_clearing_suffix_restores_names(
@@ -91,7 +91,7 @@ async def test_options_flow_clearing_suffix_restores_names(
     from custom_components.docker_monitor.const import DOMAIN
 
     hass.config_entries.async_update_entry(
-        setup_integration, options={"device_name_suffix": "Oracle"}
+        setup_integration, options={"device_name_suffix": "NAS"}
     )
     await hass.async_block_till_done(wait_background_tasks=True)
     result = await hass.config_entries.options.async_init(setup_integration.entry_id)

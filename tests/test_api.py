@@ -36,7 +36,7 @@ def test_is_anonymous_short_name():
 
 
 def test_is_anonymous_compose_name():
-    assert _is_anonymous("smart-home-prometheus-1") is False
+    assert _is_anonymous("monitoring-prometheus-1") is False
 
 
 def test_is_anonymous_keeps_named_container_with_hex_suffix():
