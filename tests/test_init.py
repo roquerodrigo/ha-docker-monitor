@@ -210,7 +210,7 @@ async def test_migrate_keeps_custom_title(
 
     entry = MockConfigEntry(
         domain=DOMAIN,
-        title="Raspberry Pi",
+        title="Home server",
         data={"socket_path": "/var/run/docker.sock"},
         unique_id="var_run_docker_sock",
         version=1,
@@ -219,7 +219,7 @@ async def test_migrate_keeps_custom_title(
     await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done(wait_background_tasks=True)
 
-    assert entry.title == "Raspberry Pi"
+    assert entry.title == "Home server"
 
 
 async def test_migrate_refuses_future_version(

@@ -30,8 +30,8 @@ def test_device_info_name():
 
 
 def test_device_info_name_with_suffix():
-    entity = _make_entity(options={"device_name_suffix": " Oracle "})
-    assert entity.device_info["name"] == "prometheus @ Oracle"
+    entity = _make_entity(options={"device_name_suffix": " NAS "})
+    assert entity.device_info["name"] == "prometheus @ NAS"
 
 
 def test_device_info_name_ignores_blank_suffix():
@@ -40,7 +40,7 @@ def test_device_info_name_ignores_blank_suffix():
 
 
 def test_device_info_identifiers_ignore_suffix():
-    entity = _make_entity(options={"device_name_suffix": "Oracle"})
+    entity = _make_entity(options={"device_name_suffix": "NAS"})
     assert entity.device_info["identifiers"] == {(DOMAIN, "prometheus")}
 
 
