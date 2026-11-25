@@ -1,41 +1,3 @@
-/**
- * Docker Monitor card — a Lovelace custom card that lists the containers
- * exposed by the `docker_monitor` integration, showing each container's health
- * check status, CPU usage and memory usage.
- *
- * Zero-build vanilla web component (no Lit/bundler). Styles are driven entirely
- * by Home Assistant design tokens so the card follows the active theme and
- * light/dark mode automatically.
- *
- * Containers are discovered from the entity registry: every device that owns
- * `docker_monitor` entities is a container, and its entities (cpu, memory,
- * health) are matched by their integration translation keys — so discovery is
- * language independent.
- *
- * Both bars share one scale: the share of what the container can use. CPU is
- * the sensor value (Docker's per-core percentage, where 100 is one saturated
- * core) divided by the `online_cpus` attribute; memory is the usage divided by
- * the `memory_limit_mb` attribute. The warning thresholds apply to those same
- * shares.
- *
- * Config:
- *   type: custom:docker-monitor-card
- *   title: Containers          # optional; defaults to a localized "Containers"
- *   devices: [...]             # optional: device ids to show (default: all)
- *   mode: all                  # all | problems (default all)
- *   sort: name                 # name | cpu | memory | health (default name)
- *   sort_direction: asc        # asc | desc; defaults to asc for name and
- *                              #   desc for the others; the in-card sort
- *                              #   buttons override it for the session
- *   columns: 2                 # max columns (1-6, default 2); wraps down on
- *                              #   narrow widths so it stays responsive
- *   cpu_warning: 80            # CPU % (of the CPUs available to the
- *                              #   container) at or above which it is flagged
- *   memory_warning: 80         # memory % (of the limit) at or above which a
- *                              #   container is flagged
- *   show_unavailable: true     # include stopped containers (default true)
- */
-
 const DEFAULT_MODE = "all";
 const DEFAULT_SORT = "name";
 const DEFAULT_COLUMNS = 2;
@@ -47,12 +9,11 @@ const MODE_OPTIONS = ["all", "problems"];
 const SORT_OPTIONS = ["name", "cpu", "memory", "health"];
 const SORT_BUTTONS = ["name", "cpu", "memory"];
 const DIRECTION_OPTIONS = ["asc", "desc"];
-const DIRECTION_ICONS = { asc: "mdi:arrow-up", desc: "mdi:arrow-down" };
+const DIRECTION_ARROWS = { asc: "↑", desc: "↓" };
 const UNKNOWN_STATES = ["unavailable", "unknown"];
 
 const HEALTH_ORDER = { unhealthy: 0, stopped: 1, healthy: 2, none: 3 };
 
-/** The direction each sort key uses unless configured or toggled otherwise. */
 function defaultDirection(sort) {
   return sort === "name" ? "asc" : "desc";
 }
@@ -138,7 +99,6 @@ const EDITOR_LABEL_KEYS = {
   show_unavailable: "editor.show_unavailable",
 };
 
-/** The active HA UI language, or a supported fallback (base lang, then "en"). */
 function resolveLang(hass) {
   const lang = (hass && (hass.locale?.language || hass.language || hass.selectedLanguage)) || "en";
   if (TRANSLATIONS[lang]) return lang;
@@ -146,27 +106,23 @@ function resolveLang(hass) {
   return "en";
 }
 
-/** Translate a dotted key for the active language; English is the fallback. */
 function localize(hass, key) {
   const lang = resolveLang(hass);
   return TRANSLATIONS[lang]?.[key] ?? TRANSLATIONS.en[key] ?? key;
 }
 
-/** Escape a string for safe interpolation into innerHTML (text and attributes). */
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
   );
 }
 
-/** Parse a numeric sensor state, or null when it carries no value. */
 function parseNumber(state) {
   if (!state || UNKNOWN_STATES.includes(state.state)) return null;
   const value = Number(state.state);
   return Number.isFinite(value) ? value : null;
 }
 
-/** Validate an optional percentage config value, falling back to a default. */
 function percentage(value, fallback, name) {
   if (value == null) return fallback;
   if (typeof value !== "number" || value < 0 || value > 100) {
@@ -175,40 +131,34 @@ function percentage(value, fallback, name) {
   return value;
 }
 
-/** Share (0-100) of a total, or null when either side is unknown. */
 function share(value, total) {
   if (value === null || !Number.isFinite(total) || total <= 0) return null;
   return Math.min(100, (value / total) * 100);
 }
 
-/** Format a memory amount in MB as a compact string with a unit. */
 function formatMemory(megabytes) {
   if (megabytes === null) return "—";
   if (megabytes >= 1024) return `${(megabytes / 1024).toFixed(2)} GB`;
   return `${megabytes >= 100 ? Math.round(megabytes) : megabytes.toFixed(1)} MB`;
 }
 
-/** Format a share of the available resource as a compact percentage. */
 function formatPercent(percent) {
   if (percent === null) return "—";
   return `${percent >= 10 ? Math.round(percent) : percent.toFixed(1)}%`;
 }
 
-/** Format the CPU usage as cores in use out of the cores available. */
 function formatCpuDetail(percent, onlineCpus) {
   if (percent === null) return "";
   if (!Number.isFinite(onlineCpus) || onlineCpus <= 0) return `${percent.toFixed(1)}%`;
   return `${(percent / 100).toFixed(2)} / ${onlineCpus} CPU`;
 }
 
-/** Format the memory usage out of the container limit. */
 function formatMemoryDetail(megabytes, limitMegabytes) {
   if (megabytes === null) return "";
   if (!Number.isFinite(limitMegabytes) || limitMegabytes <= 0) return formatMemory(megabytes);
   return `${formatMemory(megabytes)} / ${formatMemory(limitMegabytes)}`;
 }
 
-/** Compare two numbers ascending, keeping missing values last in either direction. */
 function compareNumbers(a, b, sign) {
   if (a === null && b === null) return 0;
   if (a === null) return sign;
@@ -216,7 +166,6 @@ function compareNumbers(a, b, sign) {
   return a - b;
 }
 
-/** Ascending comparators per sort key; the direction sign is applied by the caller. */
 const SORT_COMPARATORS = {
   name: (a, b, byName) => byName(a, b),
   cpu: (a, b, _byName, sign) => compareNumbers(a.cpuPercent, b.cpuPercent, sign),
@@ -242,7 +191,6 @@ class DockerMonitorCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      type: "custom:docker-monitor-card",
       mode: DEFAULT_MODE,
       sort: DEFAULT_SORT,
       columns: DEFAULT_COLUMNS,
@@ -317,7 +265,6 @@ class DockerMonitorCard extends HTMLElement {
     return this._config.direction;
   }
 
-  /** Select a sort key from the in-card buttons; selecting it again flips the direction. */
   _toggleSort(sort) {
     if (sort === this._effectiveSort()) {
       this._runtimeDirection = this._effectiveDirection() === "asc" ? "desc" : "asc";
@@ -329,12 +276,6 @@ class DockerMonitorCard extends HTMLElement {
     this._render();
   }
 
-  /**
-   * Discover containers from the entity registry.
-   *
-   * Every docker_monitor device is a container; its entities are matched by
-   * their integration translation keys (cpu, memory, health).
-   */
   _collect() {
     const hass = this._hass;
     const entities = hass.entities || {};
@@ -444,49 +385,6 @@ class DockerMonitorCard extends HTMLElement {
     if (signature === this._signature) return;
     this._signature = signature;
 
-    const rows = shown
-      .map((item) => {
-        const healthColor = this._healthColor(item);
-        const cpuColor = this._metricColor(item.cpuHigh);
-        const memoryColor = this._metricColor(item.memoryHigh);
-        const cpuWidth = item.cpuPercent ?? 0;
-        const memoryWidth = item.memoryPercent ?? 0;
-        const tooltip = item.image ? `${item.name} · ${item.image}` : item.name;
-        return `
-          <div class="item ${item.available ? "" : "is-stopped"}" data-device="${esc(item.deviceId)}" title="${esc(tooltip)}">
-            <div class="head">
-              <div class="badge" style="color:${healthColor};background:color-mix(in srgb, ${healthColor} 18%, transparent)">
-                <ha-icon icon="mdi:docker"></ha-icon>
-              </div>
-              <div class="name">${esc(item.name)}</div>
-              <div class="health" style="color:${healthColor}">${esc(t(`card.health_${item.health}`))}</div>
-            </div>
-            <div class="metric">
-              <span class="label">${esc(t("card.cpu"))}</span>
-              <div class="bar"><div class="fill" style="width:${cpuWidth}%;background:${cpuColor}"></div></div>
-              <span class="value">
-                <span class="share" style="color:${cpuColor}">${esc(formatPercent(item.cpuPercent))}</span>
-                <span class="detail">${esc(formatCpuDetail(item.cpu, item.onlineCpus))}</span>
-              </span>
-            </div>
-            <div class="metric">
-              <span class="label">${esc(t("card.memory"))}</span>
-              <div class="bar"><div class="fill" style="width:${memoryWidth}%;background:${memoryColor}"></div></div>
-              <span class="value">
-                <span class="share" style="color:${memoryColor}">${esc(formatPercent(item.memoryPercent))}</span>
-                <span class="detail">${esc(formatMemoryDetail(item.memory, item.memoryLimit))}</span>
-              </span>
-            </div>
-          </div>`;
-      })
-      .join("");
-
-    const sortButtons = SORT_BUTTONS.map((key) => {
-      const active = key === sort;
-      const icon = active ? `<ha-icon icon="${DIRECTION_ICONS[direction]}"></ha-icon>` : "";
-      return `<button data-sort="${key}" class="${active ? "active" : ""}" aria-pressed="${active}">${esc(t(`card.${key}`))}${icon}</button>`;
-    }).join("");
-
     const empty =
       mode === "problems"
         ? `<div class="empty"><ha-icon icon="mdi:check-circle-outline"></ha-icon><span>${esc(t("card.empty_all_ok"))}</span></div>`
@@ -498,34 +396,79 @@ class DockerMonitorCard extends HTMLElement {
         <div class="header">
           <div class="title">${esc(title)}</div>
           <div class="controls">
-            <div class="toggle" role="group" aria-label="${esc(t("card.filter"))}">
-              <button data-mode="all" class="${mode === "all" ? "active" : ""}">${esc(t("card.all"))}</button>
-              <button data-mode="problems" class="${mode === "problems" ? "active" : ""}">${esc(t("card.problems"))}</button>
-            </div>
-            <div class="toggle" role="group" aria-label="${esc(t("card.sort"))}">${sortButtons}</div>
+            <ha-control-select class="mode" label="${esc(t("card.filter"))}"></ha-control-select>
+            <ha-control-select class="sort" label="${esc(t("card.sort"))}"></ha-control-select>
           </div>
         </div>
-        <div class="grid" style="--cols:${this._config.columns}">${shown.length ? rows : empty}</div>
+        <div class="grid" style="--columns:${this._config.columns}">
+          ${shown.length ? shown.map((item) => this._renderContainer(item)).join("") : empty}
+        </div>
       </ha-card>`;
 
-    this.shadowRoot.querySelectorAll("[data-mode]").forEach((button) => {
-      button.addEventListener("click", () => {
-        this._runtimeMode = button.dataset.mode;
-        this._signature = null;
-        this._render();
+    const modeSelect = this.shadowRoot.querySelector("ha-control-select.mode");
+    modeSelect.options = MODE_OPTIONS.map((value) => ({ value, label: t(`card.${value}`) }));
+    modeSelect.value = mode;
+    modeSelect.addEventListener("value-changed", (event) => {
+      this._runtimeMode = event.detail.value;
+      this._signature = null;
+      this._render();
+    });
+
+    const sortSelect = this.shadowRoot.querySelector("ha-control-select.sort");
+    sortSelect.options = SORT_BUTTONS.map((value) => ({
+      value,
+      label: value === sort ? `${t(`card.${value}`)} ${DIRECTION_ARROWS[direction]}` : t(`card.${value}`),
+      ariaLabel: t(`card.${value}`),
+    }));
+    sortSelect.value = sort;
+    sortSelect.addEventListener("value-changed", (event) => this._toggleSort(event.detail.value));
+
+    this.shadowRoot.querySelectorAll(".container").forEach((element) => {
+      element.addEventListener("click", () => this._openDevicePage(element.dataset.device));
+      element.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        this._openDevicePage(element.dataset.device);
       });
-    });
-
-    this.shadowRoot.querySelectorAll("[data-sort]").forEach((button) => {
-      button.addEventListener("click", () => this._toggleSort(button.dataset.sort));
-    });
-
-    this.shadowRoot.querySelectorAll(".item").forEach((item) => {
-      item.addEventListener("click", () => this._openDevicePage(item.dataset.device));
     });
   }
 
-  /** Navigate to the device page of a container (same mechanism as HA's navigate()). */
+  _renderContainer(item) {
+    const t = (key) => localize(this._hass, key);
+    const healthColor = this._healthColor(item);
+    const tooltip = item.image ? `${item.name} · ${item.image}` : item.name;
+    const metric = (label, percent, high, detail) => {
+      const color = this._metricColor(high);
+      return `
+        <div class="metric" style="--metric-color:${color}">
+          <span class="label">${esc(label)}</span>
+          <div class="bar"><div class="fill" style="width:${percent ?? 0}%"></div></div>
+          <span class="value">
+            <span class="share">${esc(formatPercent(percent))}</span>
+            <span class="detail">${esc(detail)}</span>
+          </span>
+        </div>`;
+    };
+    return `
+      <ha-card
+        class="container ${item.available ? "" : "is-stopped"}"
+        data-device="${esc(item.deviceId)}"
+        role="button"
+        tabindex="0"
+        aria-label="${esc(item.name)}"
+        title="${esc(tooltip)}"
+        style="--health-color:${healthColor}"
+      >
+        <ha-ripple></ha-ripple>
+        <div class="head">
+          <ha-tile-icon icon="mdi:docker"></ha-tile-icon>
+          <ha-tile-info primary="${esc(item.name)}" secondary="${esc(t(`card.health_${item.health}`))}"></ha-tile-info>
+        </div>
+        ${metric(t("card.cpu"), item.cpuPercent, item.cpuHigh, formatCpuDetail(item.cpu, item.onlineCpus))}
+        ${metric(t("card.memory"), item.memoryPercent, item.memoryHigh, formatMemoryDetail(item.memory, item.memoryLimit))}
+      </ha-card>`;
+  }
+
   _openDevicePage(deviceId) {
     if (!deviceId) return;
     window.history.pushState(null, "", `/config/devices/device/${deviceId}`);
@@ -537,135 +480,97 @@ class DockerMonitorCard extends HTMLElement {
   static get styles() {
     return `
       :host { display: block; }
-      ha-card { padding: 12px 16px 16px; }
+      ha-card { padding: var(--ha-space-3, 12px) var(--ha-space-4, 16px) var(--ha-space-4, 16px); }
       .header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
+        gap: var(--ha-space-3, 12px);
+        margin-bottom: var(--ha-space-3, 12px);
         flex-wrap: wrap;
       }
       .title {
-        font-size: 1.25rem;
-        font-weight: 500;
-        color: var(--primary-text-color);
-        line-height: 1.4;
+        font-size: var(--ha-font-size-xl, 20px);
+        font-weight: var(--ha-font-weight-normal, 400);
+        line-height: var(--ha-line-height-condensed, 1.2);
+        color: var(--ha-card-header-color, var(--primary-text-color));
       }
       .controls {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         flex-wrap: wrap;
       }
-      .toggle {
-        display: inline-flex;
-        border: 1px solid var(--divider-color, rgba(0,0,0,.12));
-        border-radius: 999px;
-        overflow: hidden;
+      ha-control-select {
+        --control-select-thickness: 36px;
+        --control-select-padding: 3px;
+        font-size: var(--ha-font-size-s, 12px);
       }
-      .toggle button {
-        appearance: none;
-        border: 0;
-        background: transparent;
-        color: var(--secondary-text-color);
-        font: inherit;
-        font-size: 0.8125rem;
-        padding: 4px 14px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 2px;
-      }
-      .toggle button ha-icon {
-        --mdc-icon-size: 14px;
-        margin-right: -4px;
-      }
-      .toggle button.active {
-        background: var(--primary-color);
-        color: var(--text-primary-color, #fff);
-      }
+      ha-control-select.mode { width: 200px; }
+      ha-control-select.sort { width: 240px; }
       .grid {
-        --cols: 1;
-        --gap: 12px;
+        --columns: 1;
+        --gap: var(--ha-space-3, 12px);
         display: grid;
         gap: var(--gap);
         grid-template-columns: repeat(
           auto-fill,
-          minmax(max(${MIN_COLUMN_WIDTH}, calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols))), 1fr)
+          minmax(max(${MIN_COLUMN_WIDTH}, calc((100% - (var(--columns) - 1) * var(--gap)) / var(--columns))), 1fr)
         );
       }
-      .item {
+      .container {
+        --ha-ripple-color: var(--health-color);
+        --ha-ripple-hover-opacity: 0.04;
+        --ha-ripple-pressed-opacity: 0.12;
+        position: relative;
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
+        padding: var(--ha-space-2, 8px) var(--ha-space-3, 12px) var(--ha-space-3, 12px);
+        overflow: hidden;
         cursor: pointer;
-        padding: 12px 14px;
-        box-sizing: border-box;
-        border-radius: 12px;
-        background: var(--ha-card-background, var(--card-background-color, #fff));
-        border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
-        transition: background .2s ease, border-color .2s ease;
+        outline: none;
       }
-      .item:hover {
-        background: var(--secondary-background-color);
-        border-color: var(--primary-color);
-      }
-      .item.is-stopped { opacity: 0.55; }
+      .container:focus-visible { box-shadow: 0 0 0 2px var(--health-color); }
+      .container.is-stopped { opacity: 0.55; }
       .head {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: var(--ha-space-3, 12px);
         min-width: 0;
+        min-height: 40px;
       }
-      .badge {
-        flex: 0 0 auto;
-        width: 34px;
-        height: 34px;
-        border-radius: 10px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .badge ha-icon { --mdc-icon-size: 20px; }
-      .name {
-        flex: 1 1 auto;
+      ha-tile-icon { flex: none; --tile-icon-color: var(--health-color); }
+      ha-tile-info {
+        flex: 1;
         min-width: 0;
-        color: var(--primary-text-color);
-        font-size: 1rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .health {
-        flex: 0 0 auto;
-        font-size: 0.8125rem;
-        font-weight: 500;
-        white-space: nowrap;
+        --ha-tile-info-secondary-color: var(--health-color);
       }
       .metric {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
       }
       .label {
         flex: 0 0 52px;
         color: var(--secondary-text-color);
-        font-size: 0.75rem;
+        font-size: var(--ha-font-size-xs, 10px);
+        font-weight: var(--ha-font-weight-medium, 500);
         text-transform: uppercase;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.04em;
       }
       .bar {
         flex: 1 1 auto;
         height: 6px;
-        border-radius: 3px;
-        background: var(--divider-color, rgba(0,0,0,.1));
+        border-radius: var(--ha-border-radius-pill, 9999px);
+        background: var(--divider-color);
         overflow: hidden;
       }
       .fill {
         height: 100%;
-        border-radius: 3px;
-        transition: width .3s ease;
+        border-radius: inherit;
+        background: var(--metric-color);
+        transition: width 0.3s ease;
       }
       .value {
         flex: 0 0 auto;
@@ -678,20 +583,21 @@ class DockerMonitorCard extends HTMLElement {
         white-space: nowrap;
       }
       .share {
-        font-size: 0.8125rem;
-        font-weight: 600;
+        font-size: var(--ha-font-size-s, 12px);
+        font-weight: var(--ha-font-weight-bold, 600);
+        color: var(--metric-color);
       }
       .detail {
-        font-size: 0.6875rem;
+        font-size: var(--ha-font-size-xs, 10px);
         color: var(--secondary-text-color);
       }
       .empty {
         grid-column: 1 / -1;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--ha-space-2, 8px);
         color: var(--secondary-text-color);
-        padding: 16px 4px;
+        padding: var(--ha-space-4, 16px) var(--ha-space-1, 4px);
       }
     `;
   }
@@ -791,9 +697,6 @@ class DockerMonitorCardEditor extends HTMLElement {
       this._form = document.createElement("ha-form");
       this._form.computeLabel = (schema) => this._labels(schema);
       this._form.addEventListener("value-changed", (ev) => {
-        // Spread the stored config first so keys outside the form schema
-        // survive an editor round-trip; drop cleared fields so an empty title
-        // falls back to the localized default instead of freezing blank.
         const config = { type: "custom:docker-monitor-card", ...this._config, ...ev.detail.value };
         for (const [key, value] of Object.entries(config)) {
           if (value === "" || value == null) delete config[key];
@@ -820,11 +723,8 @@ class DockerMonitorCardEditor extends HTMLElement {
   }
 }
 
-// The module runs once per URL it is served from, and the card URL carries the
-// integration version. Upgrading the integration without restarting Home
-// Assistant leaves the previous version's URL registered alongside the new one,
-// so the module is evaluated twice. Without this guard the second run throws on
-// the already-taken tag name and registers a duplicate card picker entry.
+// The module is evaluated once per URL, and the URL carries the integration
+// version: upgrading without a restart loads it a second time.
 if (!customElements.get("docker-monitor-card")) {
   customElements.define("docker-monitor-card", DockerMonitorCard);
   customElements.define("docker-monitor-card-editor", DockerMonitorCardEditor);
@@ -838,6 +738,5 @@ if (!customElements.get("docker-monitor-card")) {
     documentationURL: "https://github.com/roquerodrigo/ha-docker-monitor",
   });
 
-  // eslint-disable-next-line no-console
   console.info("%c docker-monitor-card ", "background:#2496ED;color:#fff;border-radius:3px", "loaded");
 }
