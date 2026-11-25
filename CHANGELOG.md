@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.5.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.4.1...v1.5.0) (2026-11-25)
+
+### Improvements
+
+- The Docker Monitor dashboard card now uses native Home Assistant components: tile-style container cards, a segmented control for filter and sort, press feedback, keyboard access and closer theme matching. ([#86](https://github.com/roquerodrigo/ha-docker-monitor/pull/86))
+
 ## [1.4.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.4.0...v1.4.1) (2026-11-15)
 
 ### Bug fixes
