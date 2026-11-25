@@ -10,6 +10,8 @@
 
 Follow your Docker containers from Home Assistant: how much CPU and memory each one uses, whether its health check passes, how long it has been running and which image it runs. Home Assistant reads this from Docker on the machine it runs on or on other machines in your network. Nothing goes through the cloud.
 
+![Card listing the containers with their health, CPU and memory](images/dashboard.png)
+
 ## Features
 
 - See the CPU and memory use of every container, with the same figures as `docker stats`.
