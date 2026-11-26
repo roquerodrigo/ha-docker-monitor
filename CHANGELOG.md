@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.1](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.5.0...v1.5.1) (2026-11-26)
+
+### Bug fixes
+
+- A single container that failed to answer, for example on a timeout or when recreated mid-refresh, no longer makes every container unavailable; only that container's entities are affected and the change is logged once. ([#89](https://github.com/roquerodrigo/ha-docker-monitor/pull/89))
+- Debug logging no longer writes CPU and memory lines for every container on each refresh, keeping the debug log small and readable. ([#90](https://github.com/roquerodrigo/ha-docker-monitor/pull/90))
+
 ## [1.5.0](https://github.com/roquerodrigo/ha-docker-monitor/compare/v1.4.1...v1.5.0) (2026-11-25)
 
 ### Improvements
