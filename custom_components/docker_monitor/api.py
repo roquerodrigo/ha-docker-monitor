@@ -10,7 +10,7 @@ import aiodocker
 import aiohttp
 from homeassistant.util import dt as dt_util
 
-from .const import LOGGER, REQUEST_TIMEOUT, RUNNING_STATE
+from .const import REQUEST_TIMEOUT, RUNNING_STATE
 from .exceptions import (
     DockerMonitorApiClientCommunicationError,
     DockerMonitorApiClientError,
@@ -251,9 +251,7 @@ def _calculate_cpu_percent(stats: JsonObject) -> float | None:
     # Official `docker stats` formula: the container's share of total CPU
     # time over the sampling window, scaled by the number of online CPUs so
     # 100% means one fully-saturated core (matches the Docker CLI / API docs).
-    percent = round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)
-    LOGGER.debug("CPU: %.2f%% (online_cpus=%s)", percent, online_cpus)
-    return percent
+    return round((cpu_delta / sys_delta) * float(online_cpus) * 100.0, 2)
 
 
 def _read_online_cpus(stats: JsonObject) -> int | None:
@@ -282,9 +280,6 @@ def _calculate_memory(
 
     used_mb = round((usage - _page_cache(mem_stats, usage)) / 1024 / 1024, 1)
     limit_mb = round(limit / 1024 / 1024, 1)
-
-    LOGGER.debug("Memory: used=%s MB, limit=%s MB", used_mb, limit_mb)
-
     return used_mb, limit_mb
 
 
