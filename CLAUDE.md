@@ -127,6 +127,17 @@ the tag after the last slash (registry ports), a missing tag means `latest`
 unless the reference is digest-pinned or a bare image ID. There is no
 authentication error type — the Docker Engine API is unauthenticated.
 
+### Partial failures
+
+The coordinator fetches every running container at once — each stats request
+holds about a second for Docker's second CPU sample, so a limit would stretch
+the refresh well past the scan interval. A container whose fetch fails is left
+out of that refresh, so only its entities become unavailable, and the
+transition is logged once at INFO each way (`log-when-unavailable`). The refresh raises
+`UpdateFailed` only when the container list fails or every running container
+does. This also absorbs the race where a container is recreated between the
+list and its inspect (`404 No such container`).
+
 ### Diagnostics
 
 `diagnostics.py` returns `DockerMonitorDiagnosticsPayload` with the entry data
